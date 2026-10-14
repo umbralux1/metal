@@ -17,35 +17,8 @@ services:
         fromDatabase:
           name: metal-db
           property: connectionString
-      # Пока сайт живёт на *.onrender.com, закрываем его от поисковиков,
-      # чтобы копия не попала в индекс раньше основного домена.
-      # После подключения домена: ALLOW_INDEXING=true и SITE_URL=https://ваш-домен.ru
-      - key: ALLOW_INDEXING
-        value: "false"
-      - key: SEED_DEMO
-        value: "true"               # демо-товары при первом запуске; выключите, когда загрузите прайс
-      # Админка /admin: пароль и ключ сессий Render сгенерирует сам — пароль смотрите в Environment
-      - key: ADMIN_USERNAME
-        value: admin
-      - key: ADMIN_PASSWORD
-        generateValue: true
-      - key: SECRET_KEY
-        generateValue: true
-      # Временные данные для MVP — замените на настоящие
-      - key: SITE_NAME
-        value: Металлобаза
-      - key: PHONE
-        value: "+7 (495) 000-00-00"
-      - key: EMAIL
-        value: info@example.ru
-      - key: WORK_HOURS
-        value: "Пн–Сб 9:00–19:00, Вс 10:00–15:00"
-      - key: ADDRESS
-        value: "Москва, склад (адрес уточняется)"
-      - key: CUT_PRICE_KOP
-        value: "5000"
-      - key: TON_PRICE_FROM_KG
-        value: "1000"
+      # Остальные настройки тестового окружения — в deploy/render.env (приложение читает его само).
+      # Значения, заданные здесь или в панели Render, важнее файла.
 
 databases:
   - name: metal-db

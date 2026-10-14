@@ -1,15 +1,28 @@
 import os
 import secrets
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+# Тестовые настройки для Render: файл в репозитории, подключается только когда приложение работает на Render.
+RENDER_ENV_FILE = PROJECT_ROOT / "deploy" / "render.env"
+
+
+def env_files() -> tuple[str | Path, ...]:
+    """Локально — .env. На Render (там задана переменная RENDER) — ещё и deploy/render.env.
+
+    Порядок важности: переменные окружения (панель Render) > deploy/render.env > .env > значения в коде.
+    """
+    return (".env", RENDER_ENV_FILE) if os.environ.get("RENDER") else (".env",)
+
 
 class Settings(BaseSettings):
-    """Настройки приложения. Читаются из переменных окружения и файла .env."""
+    """Настройки приложения. Читаются из переменных окружения и файлов из env_files()."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=env_files(), env_file_encoding="utf-8", extra="ignore")
 
     database_url: str = "postgresql+psycopg://metal:metal@localhost:5433/metal"
     debug: bool = False
@@ -30,6 +43,8 @@ class Settings(BaseSettings):
     # false — сайт закрыт от поисковиков: robots.txt «Disallow: /» и заголовок X-Robots-Tag.
     # Для тестовых копий (Render до подключения домена), чтобы они не попали в индекс.
     allow_indexing: bool = True
+    # true — при запуске на хостинге загрузить демо-товары в пустую базу (python main.py)
+    seed_demo: bool = False
 
     page_size: int = 24
 

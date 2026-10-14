@@ -2,6 +2,7 @@
 
 Локально — сервер для разработки на 127.0.0.1:8000 с автоперезагрузкой.
 На хостинге (задана переменная PORT, как на Render) — миграции, демо-данные при SEED_DEMO=true
+(из окружения или deploy/render.env)
 и боевой запуск на 0.0.0.0:$PORT без автоперезагрузки.
 """
 
@@ -19,14 +20,16 @@ def server_options(env: dict[str, str]) -> dict:
     }
 
 
-def prepare_database(env: dict[str, str]) -> None:
+def prepare_database() -> None:
     """На хостинге перед стартом: схема БД и (по желанию) демо-данные."""
     import asyncio
 
     from alembic.config import main as alembic
 
+    from app.core.config import settings
+
     alembic(argv=["upgrade", "head"])
-    if env.get("SEED_DEMO", "false").lower() == "true":
+    if settings.seed_demo:
         from app.catalog.seed import main as seed
 
         asyncio.run(seed())
@@ -37,5 +40,5 @@ if __name__ == "__main__":
 
     options = server_options(dict(os.environ))
     if not options["reload"]:
-        prepare_database(dict(os.environ))
+        prepare_database()
     uvicorn.run("app.main:app", **options)

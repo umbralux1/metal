@@ -59,3 +59,34 @@ def test_main_server_options():
     assert local["host"] == "127.0.0.1" and local["port"] == 8000 and local["reload"] is True
     hosted = server_options({"PORT": "10000"})
     assert hosted["host"] == "0.0.0.0" and hosted["port"] == 10000 and hosted["reload"] is False
+
+
+def test_render_env_file_only_on_render(monkeypatch):
+    from app.core.config import RENDER_ENV_FILE, env_files
+
+    monkeypatch.delenv("RENDER", raising=False)
+    assert env_files() == (".env",)
+    monkeypatch.setenv("RENDER", "true")
+    assert env_files() == (".env", RENDER_ENV_FILE)
+    assert RENDER_ENV_FILE.is_file()
+
+
+def test_render_env_file_values_and_dashboard_override(monkeypatch):
+    from app.core.config import RENDER_ENV_FILE
+
+    for key in ("ADMIN_PASSWORD", "ADMIN_USERNAME", "SEED_DEMO", "ALLOW_INDEXING", "SECRET_KEY", "PHONE"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("RENDER", "true")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@db/metal")
+
+    s = Settings(_env_file=RENDER_ENV_FILE)
+    assert s.seed_demo is True and s.allow_indexing is False
+    assert s.admin_username == "admin" and s.admin_password
+    assert len(s.secret_key) >= 32
+    assert "DATABASE_URL" not in RENDER_ENV_FILE.read_text().replace("# DATABASE_URL", "")
+
+    # Переменная из панели Render важнее файла
+    monkeypatch.setenv("ADMIN_PASSWORD", "from-dashboard")
+    monkeypatch.setenv("SEED_DEMO", "false")
+    s = Settings(_env_file=RENDER_ENV_FILE)
+    assert s.admin_password == "from-dashboard" and s.seed_demo is False

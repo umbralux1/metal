@@ -23,10 +23,10 @@ pytest                                   # тесты, в т. ч. SEO-контр
 
 `/admin` — разделы, товары, цены, посадочные (SEO-фильтры), редиректы и заявки. Работает на SQLAdmin.
 
-- Включается паролем: `ADMIN_PASSWORD` в `.env` (локально) или в Environment на Render. Без пароля `/admin` не существует.
+- Включается паролем: `ADMIN_PASSWORD` в `.env` (локально) или в `deploy/render.env` / Environment на Render. Без пароля `/admin` не существует.
 - Логин — `ADMIN_USERNAME` (по умолчанию `admin`). После 5 неверных паролей за 15 минут вход с этого IP закрывается.
 - `SECRET_KEY` подписывает сессию. Если не задан, генерируется при запуске, и после рестарта придётся войти заново.
-  На Render Blueprint генерирует его сам.
+  Для теста на Render он лежит в `deploy/render.env`.
 
 Что админка делает сама:
 - **Адреса.** Slug можно не заполнять — он соберётся из названия латиницей; путь строится от родительского раздела.
@@ -44,9 +44,20 @@ pytest                                   # тесты, в т. ч. SEO-контр
 
 В репозитории лежит Blueprint `render.yaml`: по нему Render создаёт веб-сервис и базу PostgreSQL 16.
 
+### Тестовые переменные: `deploy/render.env`
+
+Все настройки тестового стенда (данные магазина, `ALLOW_INDEXING=false`, `SEED_DEMO=true`, логин и пароль админки,
+`SECRET_KEY`) лежат в `deploy/render.env` и хранятся в git. Приложение читает этот файл само, но только на Render
+(там есть переменная `RENDER`); локально он не используется. В панели Render нужен только `DATABASE_URL`.
+
+Порядок важности: Environment в панели Render > `deploy/render.env` > значения в коде. Поэтому любую настройку можно
+переопределить в панели, не меняя файл.
+
+> В файле пароль админки открытым текстом. Держите репозиторий приватным. Перед настоящим запуском задайте
+> `ADMIN_PASSWORD` и `SECRET_KEY` в панели Render и уберите их из файла.
+
 1. Залейте проект на GitHub (или GitLab): `git remote add origin …` и `git push -u origin main`.
 2. На [dashboard.render.com](https://dashboard.render.com): **New → Blueprint**, выберите репозиторий, нажмите **Apply**.
-   Render спросит `PHONE` и `EMAIL` — их видно на сайте.
 3. Через пару минут сайт откроется по адресу вида `https://metal-web.onrender.com`.
 
 При каждом запуске `python main.py` (его вызывает `scripts/render-start.sh`) применяет миграции,
@@ -54,7 +65,7 @@ pytest                                   # тесты, в т. ч. SEO-контр
 
 Пока сайт живёт на `*.onrender.com`, он закрыт от поисковиков (`ALLOW_INDEXING=false`): robots.txt запрещает
 всё, а каждый ответ получает `X-Robots-Tag: noindex`. Это нужно, чтобы тестовая копия не попала в индекс
-раньше основного домена. Когда подключите свой домен (Settings → Custom Domains), поменяйте в Environment:
+раньше основного домена. Когда подключите свой домен (Settings → Custom Domains), поменяйте в Environment (или в `deploy/render.env`):
 `SITE_URL=https://ваш-домен.ru`, `ALLOW_INDEXING=true`, `SEED_DEMO=false`.
 
 ### Если сервис создан вручную (New → Web Service)
@@ -64,8 +75,7 @@ pytest                                   # тесты, в т. ч. SEO-контр
    - **Build Command:** `pip install -r requirements.txt`
    - **Start Command:** `python main.py` — на хостинге он сам применит миграции и запустит сервер на `0.0.0.0:$PORT`
    - **Health Check Path:** `/health`
-3. **Environment:** `DATABASE_URL` = Internal Database URL из шага 1, `ALLOW_INDEXING=false`, `SEED_DEMO=true`,
-   `PHONE`, `EMAIL`, `ADMIN_PASSWORD` (надёжный пароль) и `SECRET_KEY` (длинная случайная строка).
+3. **Environment:** только `DATABASE_URL` = Internal Database URL из шага 1. Остальное берётся из `deploy/render.env`.
 
 Без `DATABASE_URL` приложение на Render сразу остановится с подсказкой, что переменная не задана.
 
