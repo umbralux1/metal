@@ -7,6 +7,7 @@ from app.catalog import repository as repo
 from app.catalog.models import FilterLanding
 from app.core.config import settings
 from app.core.db import get_session
+from app.core.maps import yandex_map
 from app.core.templating import templates
 from app.seo import jsonld
 from app.seo.meta import PageMeta, absolute, city_prep, robots_for
@@ -35,6 +36,29 @@ async def home(request: Request, session: AsyncSession = Depends(get_session)):
             "categories": await repo.top_categories(session),
             "landings": list(landings),
             "jsonld": [jsonld.to_script(jsonld.organization())],
+        },
+    )
+
+
+@router.get("/contacts/", response_class=HTMLResponse, name="contacts")
+async def contacts(request: Request):
+    meta = PageMeta(
+        title=f"Контакты и адрес склада металлопроката в {city_prep()} | {settings.site_name}",
+        description=f"Адрес склада, схема проезда на карте, телефон и часы работы. {settings.work_hours}. "
+        f"☎ {settings.phone}",
+        h1="Контакты",
+        canonical=absolute("/contacts/"),
+        robots=robots_for(request),
+    )
+    crumbs = [("Главная", "/"), ("Контакты", "/contacts/")]
+    return templates.TemplateResponse(
+        request,
+        "contacts.html",
+        {
+            "meta": meta,
+            "map": yandex_map(),
+            "breadcrumbs": crumbs,
+            "jsonld": [jsonld.to_script(jsonld.local_business()), jsonld.to_script(jsonld.breadcrumbs(crumbs))],
         },
     )
 

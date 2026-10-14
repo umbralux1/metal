@@ -24,6 +24,27 @@ def organization() -> dict[str, Any]:
     }
 
 
+def local_business() -> dict[str, Any]:
+    """Склад-магазин для страницы контактов: адрес, часы, координаты (если заданы)."""
+    data: dict[str, Any] = {
+        "@context": "https://schema.org",
+        "@type": "Store",
+        "name": settings.site_name,
+        "url": absolute("/"),
+        "telephone": settings.phone,
+        "email": settings.email,
+        "address": {
+            "@type": "PostalAddress",
+            "addressLocality": settings.city,
+            "addressCountry": "RU",
+            **({"streetAddress": settings.address} if settings.address else {}),
+        },
+    }
+    if settings.map_lat is not None and settings.map_lon is not None:
+        data["geo"] = {"@type": "GeoCoordinates", "latitude": settings.map_lat, "longitude": settings.map_lon}
+    return data
+
+
 def breadcrumbs(items: list[tuple[str, str]]) -> dict[str, Any]:
     return {
         "@context": "https://schema.org",

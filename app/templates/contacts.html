@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ meta.h1 }}</h1>
+<div class="contacts">
+  <section class="contacts-info" aria-label="Как связаться">
+    <dl>
+      <dt>Телефон</dt>
+      <dd><a class="contacts-phone" href="{{ phone_href(settings.phone) }}">{{ settings.phone }}</a></dd>
+      <dt>Часы работы</dt>
+      <dd>{{ settings.work_hours }}</dd>
+      <dt>Почта</dt>
+      <dd><a href="mailto:{{ settings.email }}">{{ settings.email }}</a></dd>
+      <dt>Адрес склада</dt>
+      <dd>{{ settings.address or settings.city }}</dd>
+    </dl>
+    <p class="muted">Приезжайте за заказом сами или закажите доставку по {{ settings.city_prepositional }} и области. Перед приездом позвоните: соберём и нарежем заказ заранее.</p>
+    <div class="contacts-actions">
+      {% if map.route_url %}<a class="btn" href="{{ map.route_url }}" target="_blank" rel="noopener">Построить маршрут</a>{% endif %}
+      <a class="btn btn-ghost" href="{{ map.open_url }}" target="_blank" rel="noopener">Открыть в Яндекс Картах</a>
+    </div>
+  </section>
+  <div class="contacts-map">
+    <iframe src="{{ map.widget_src }}" title="Склад {{ settings.site_name }} на Яндекс Картах" loading="lazy" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+  </div>
+</div>
+{% endblock %}

@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     whatsapp: str = ""  # номер цифрами, например 79160000000; пусто — кнопки нет
     telegram: str = ""  # имя пользователя или бота без @
 
+    # Яндекс Карта на странице /contacts/. Координаты склада — из Яндекс Карт (клик по точке → «55.75, 37.62»).
+    # Пусто — показываем карту города без метки.
+    map_lat: float | None = None
+    map_lon: float | None = None
+    map_zoom: int = 16
+
     # false — сайт закрыт от поисковиков: robots.txt «Disallow: /» и заголовок X-Robots-Tag.
     # Для тестовых копий (Render до подключения домена), чтобы они не попали в индекс.
     allow_indexing: bool = True
@@ -57,6 +63,11 @@ class Settings(BaseSettings):
     # Калькулятор: цена одного реза и с какого веса действует цена за тонну
     cut_price_kop: int = 5000
     ton_price_from_kg: int = 1000
+
+    @field_validator("map_lat", "map_lon", mode="before")
+    @classmethod
+    def _empty_coordinate(cls, value: object) -> object:
+        return None if value == "" else value
 
     @field_validator("database_url")
     @classmethod
