@@ -15,7 +15,7 @@ from app.core.templating import TEMPLATES_DIR, templates
 from app.leads.router import router as leads_router
 from app.pages.router import router as pages_router
 from app.seo.meta import PageMeta, absolute
-from app.seo.middleware import CanonicalUrlMiddleware
+from app.seo.middleware import CanonicalUrlMiddleware, NoIndexMiddleware
 from app.seo.router import router as seo_router
 
 
@@ -36,6 +36,8 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(NavMiddleware)
     app.add_middleware(CanonicalUrlMiddleware)
+    if not settings.allow_indexing:
+        app.add_middleware(NoIndexMiddleware)
     app.mount("/static", StaticFiles(directory=str(TEMPLATES_DIR.parent / "static")), name="static")
 
     app.include_router(pages_router)

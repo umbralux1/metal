@@ -32,3 +32,24 @@ class CanonicalUrlMiddleware:
                 await response(scope, receive, send)
                 return
         await self.app(scope, receive, send)
+
+
+class NoIndexMiddleware:
+    """Добавляет X-Robots-Tag: noindex ко всем ответам, когда ALLOW_INDEXING=false."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_header(message):
+            if message["type"] == "http.response.start":
+                headers = [(k, v) for k, v in message.get("headers", []) if k.lower() != b"x-robots-tag"]
+                headers.append((b"x-robots-tag", b"noindex, nofollow"))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, send_with_header)

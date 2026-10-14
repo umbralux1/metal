@@ -1,5 +1,7 @@
+import os
 from functools import lru_cache
 
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,11 +26,32 @@ class Settings(BaseSettings):
     whatsapp: str = ""  # номер цифрами, например 79160000000; пусто — кнопки нет
     telegram: str = ""  # имя пользователя или бота без @
 
+    # false — сайт закрыт от поисковиков: robots.txt «Disallow: /» и заголовок X-Robots-Tag.
+    # Для тестовых копий (Render до подключения домена), чтобы они не попали в индекс.
+    allow_indexing: bool = True
+
     page_size: int = 24
 
     # Калькулятор: цена одного реза и с какого веса действует цена за тонну
     cut_price_kop: int = 5000
     ton_price_from_kg: int = 1000
+
+    @field_validator("database_url")
+    @classmethod
+    def _async_driver(cls, url: str) -> str:
+        """Render и другие хостинги отдают postgres:// или postgresql:// — нужен драйвер psycopg."""
+        for prefix in ("postgres://", "postgresql://"):
+            if url.startswith(prefix):
+                return "postgresql+psycopg://" + url[len(prefix) :]
+        return url
+
+    @model_validator(mode="after")
+    def _site_url_from_render(self) -> "Settings":
+        """Если SITE_URL не задан, на Render берём его адрес вида https://metal-web.onrender.com."""
+        if "site_url" not in self.model_fields_set and os.environ.get("RENDER_EXTERNAL_URL"):
+            self.site_url = os.environ["RENDER_EXTERNAL_URL"]
+        self.site_url = self.site_url.rstrip("/")
+        return self
 
 
 @lru_cache

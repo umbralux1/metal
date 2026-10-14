@@ -1,0 +1,40 @@
+# Render Blueprint: веб-сервис FastAPI + PostgreSQL.
+# Render → New → Blueprint → выбрать репозиторий → Apply.
+# Документация: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: metal-web
+    runtime: python
+    plan: free                      # для продакшена: 0.5c-512mb или выше (не засыпает)
+    region: frankfurt               # ближайший к России регион Render
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash scripts/render-start.sh   # миграции + uvicorn
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: metal-db
+          property: connectionString
+      # Пока сайт живёт на *.onrender.com, закрываем его от поисковиков,
+      # чтобы копия не попала в индекс раньше основного домена.
+      # После подключения домена: ALLOW_INDEXING=true и SITE_URL=https://ваш-домен.ru
+      - key: ALLOW_INDEXING
+        value: "false"
+      - key: SEED_DEMO
+        value: "true"               # демо-товары при первом запуске; выключите, когда загрузите прайс
+      - key: SITE_NAME
+        value: Металлобаза
+      - key: PHONE
+        sync: false                 # Render спросит значение при создании Blueprint
+      - key: EMAIL
+        sync: false
+
+databases:
+  - name: metal-db
+    plan: free                      # бесплатная база удаляется через 30 дней — для продакшена 0.1c-256mb и выше
+    region: frankfurt
+    databaseName: metal
+    user: metal
+    postgresMajorVersion: "16"

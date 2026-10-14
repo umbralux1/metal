@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog.models import Category, FilterLanding, Product
+from app.core.config import settings
 from app.core.db import get_session
 from app.seo.meta import absolute
 
@@ -15,6 +16,8 @@ router = APIRouter()
 
 @router.get("/robots.txt", response_class=PlainTextResponse, include_in_schema=False)
 async def robots_txt() -> str:
+    if not settings.allow_indexing:
+        return "User-agent: *\nDisallow: /\n"
     return "\n".join(
         [
             "User-agent: *",

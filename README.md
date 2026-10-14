@@ -19,6 +19,31 @@ pytest                                   # тесты, в т. ч. SEO-контр
 
 Документация API (`/docs`) включается только при `DEBUG=true`.
 
+## Деплой на Render
+
+В репозитории лежит Blueprint `render.yaml`: по нему Render создаёт веб-сервис и базу PostgreSQL 16.
+
+1. Залейте проект на GitHub (или GitLab): `git remote add origin …` и `git push -u origin main`.
+2. На [dashboard.render.com](https://dashboard.render.com): **New → Blueprint**, выберите репозиторий, нажмите **Apply**.
+   Render спросит `PHONE` и `EMAIL` — их видно на сайте.
+3. Через пару минут сайт откроется по адресу вида `https://metal-web.onrender.com`.
+
+При каждом запуске `scripts/render-start.sh` применяет миграции (`alembic upgrade head`),
+при `SEED_DEMO=true` загружает демо-товары и запускает uvicorn. Каждый push в `main` деплоится автоматически.
+
+Пока сайт живёт на `*.onrender.com`, он закрыт от поисковиков (`ALLOW_INDEXING=false`): robots.txt запрещает
+всё, а каждый ответ получает `X-Robots-Tag: noindex`. Это нужно, чтобы тестовая копия не попала в индекс
+раньше основного домена. Когда подключите свой домен (Settings → Custom Domains), поменяйте в Environment:
+`SITE_URL=https://ваш-домен.ru`, `ALLOW_INDEXING=true`, `SEED_DEMO=false`.
+
+Ограничения бесплатного тарифа Render ([подробнее](https://render.com/docs/free)):
+- веб-сервис засыпает после 15 минут без запросов, первый запрос после сна идёт медленно;
+- бесплатная база PostgreSQL удаляется через 30 дней после создания.
+
+Для настоящего запуска поменяйте в `render.yaml` `plan: free` на платные планы: веб-сервис — `0.5c-512mb` или выше,
+база — `0.1c-256mb` или выше. Адрес базы Render отдаёт в виде `postgresql://…`, приложение само переключает его
+на драйвер psycopg; `SITE_URL` без явного значения берётся из `RENDER_EXTERNAL_URL`.
+
 ## Структура
 
 ```
