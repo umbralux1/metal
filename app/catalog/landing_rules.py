@@ -30,6 +30,16 @@ class LandingRule:
     # Уточнение по подразделу для title и description: {"kvadratnaya": "квадратная"} →
     # «Труба профильная квадратная 20х20х2 купить…» — так ищут не реже, чем «труба профильная 20х20».
     qualifiers: Mapping[str, str] = field(default_factory=dict)
+    # Подразделы, которые в эти посадочные не входят: у них своё правило или нет размеров
+    # (стеклопластиковая арматура не должна попадать в «Арматуру 8 мм»)
+    exclude: tuple[str, ...] = ()
+
+    def covers(self, category_path: str) -> bool:
+        """Раздел товара внутри раздела правила и не в исключённом подразделе."""
+        if category_path != self.category_path and not category_path.startswith(self.category_path + "/"):
+            return False
+        inner = category_path[len(self.category_path) :].strip("/").split("/")
+        return not any(slug in self.exclude for slug in inner if slug)
 
 
 RULES: tuple[LandingRule, ...] = (
@@ -39,6 +49,15 @@ RULES: tuple[LandingRule, ...] = (
         "Арматура",
         "от одного прутка",
         "Идёт на ленточный и плитный фундамент, монолитные стены и перекрытия, армирование кладки и отмостки.",
+        exclude=("kompozitnaya", "fiksatory", "khomuty"),
+    ),
+    LandingRule(
+        "armatura/kompozitnaya",
+        ("diameter_mm",),
+        "Арматура стеклопластиковая",
+        "от одного прутка",
+        "Стеклопластиковая арматура не ржавеет и в несколько раз легче стальной: её берут для фундаментов "
+        "небольших построек, отмосток, дорожек и армирования кладки.",
     ),
     LandingRule(
         "truba-profilnaya",
@@ -46,7 +65,34 @@ RULES: tuple[LandingRule, ...] = (
         "Труба профильная",
         "от одной трубы",
         "Из профильной трубы варят каркасы навесов и теплиц, столбы и лаги забора, ворота, калитки и перила.",
-        qualifiers={"kvadratnaya": "квадратная", "pryamougolnaya": "прямоугольная", "otsinkovannaya": "оцинкованная"},
+        qualifiers={"kvadratnaya": "квадратная", "pryamougolnaya": "прямоугольная"},
+        exclude=("otsinkovannaya",),
+    ),
+    LandingRule(
+        "truba-profilnaya/otsinkovannaya",
+        ("width_mm", "height_mm"),
+        "Труба профильная оцинкованная",
+        "от одной трубы",
+        "Оцинкованная профильная труба не требует покраски: её ставят на теплицы, навесы и заборы, "
+        "где металл постоянно под дождём.",
+    ),
+    LandingRule(
+        "truba/elektrosvarnaya",
+        ("diameter_mm",),
+        "Труба электросварная",
+        "от одной трубы",
+        "Электросварная труба подходит для столбов забора, опор навесов, водопровода и дренажа.",
+    ),
+    LandingRule(
+        "truba/besshovnaya",
+        ("diameter_mm",),
+        "Труба бесшовная",
+        "от одной трубы",
+        "Бесшовная труба держит высокое давление: её берут для отопления, гидравлики и ответственных конструкций.",
+        qualifiers={
+            "goryachedeformirovannaya": "горячедеформированная",
+            "kholodnodeformirovannaya": "холоднодеформированная",
+        },
     ),
     LandingRule(
         "ugolok",
@@ -58,24 +104,38 @@ RULES: tuple[LandingRule, ...] = (
     ),
     LandingRule(
         "polosa",
-        ("width_mm", "thickness_mm"),
+        ("width_mm",),
         "Полоса стальная",
         "от одной полосы",
         "Полоса идёт на контур заземления, закладные, обвязку и усиление металлоконструкций.",
     ),
     LandingRule(
-        "list",
-        ("thickness_mm",),
-        "Лист",
-        "от одного листа",
-        "Лист используют для обшивки, ворот, кузовов, перекрытия приямков и изготовления закладных.",
+        "kvadrat",
+        ("width_mm",),
+        "Квадрат стальной",
+        "от одного прутка",
+        "Стальной квадрат используют для решёток, ограждений, перил, ворот и кованых элементов.",
     ),
     LandingRule(
-        "truba-elektrosvarnaya",
-        ("diameter_mm",),
-        "Труба электросварная",
-        "от одной трубы",
-        "Электросварная труба подходит для столбов забора, опор навесов, водопровода и дренажа.",
+        "list/goryachekatanyy",
+        ("thickness_mm",),
+        "Лист горячекатаный",
+        "от одного листа",
+        "Горячекатаный лист идёт на ворота, кузова, перекрытие приямков, закладные и раскрой деталей.",
+    ),
+    LandingRule(
+        "list/kholodnokatanyy",
+        ("thickness_mm",),
+        "Лист холоднокатаный",
+        "от одного листа",
+        "Холоднокатаный лист с ровной гладкой поверхностью берут для гибки, обшивки, корпусов и под покраску.",
+    ),
+    LandingRule(
+        "list/otsinkovannyy",
+        ("thickness_mm",),
+        "Лист оцинкованный",
+        "от одного листа",
+        "Оцинкованный лист идёт на отливы, планки, короба вентиляции, обшивку и кровельные элементы.",
     ),
     LandingRule(
         "svai-vintovye",
@@ -84,20 +144,23 @@ RULES: tuple[LandingRule, ...] = (
         "от одной сваи",
         "Сваи 57–76 мм ставят под забор и лёгкие постройки, 89–108 мм — под дом из бруса и каркасный дом, "
         "133–159 мм — под тяжёлые дома и на слабые грунты.",
+        exclude=("ogolovki",),
     ),
 )
 
 
 def rule_for(category_path: str) -> LandingRule | None:
-    """Правило для раздела товара: по корню адреса раздела ("truba-profilnaya/kvadratnaya" → труба)."""
-    root = category_path.split("/")[0]
-    return next((rule for rule in RULES if rule.category_path == root), None)
+    """Правило для раздела товара: самое точное по адресу раздела
+    ("truba-profilnaya/otsinkovannaya" → правило оцинкованной трубы, а не общее профильной)."""
+    matches = [rule for rule in RULES if rule.covers(category_path)]
+    return max(matches, key=lambda rule: len(rule.category_path), default=None)
 
 
 def qualifier_for(rule: LandingRule | None, category_path: str) -> str:
     if rule is None:
         return ""
-    return next((q for slug, q in rule.qualifiers.items() if slug in category_path.split("/")[1:]), "")
+    inner = category_path[len(rule.category_path) :].strip("/").split("/")
+    return next((q for slug, q in rule.qualifiers.items() if slug in inner), "")
 
 
 def display_name(name: str, category_path: str) -> str:

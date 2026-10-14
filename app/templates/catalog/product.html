@@ -18,6 +18,12 @@
         {{ drawing }}
         <figcaption>Сечение, размеры в миллиметрах</figcaption>
       </figure>
+      {% else %}
+      {# Профиль без чертежа (уголок, швеллер, балка, лист, крепёж) — объёмный значок вместо пустого места #}
+      <figure class="drawing drawing-icon">
+        {{ category_icon(product.path.split('/')[0]) }}
+        {% if product.size_label %}<figcaption>{{ product.size_label }}{% if product.attrs and product.attrs.get('format') %}, {{ product.attrs.get('format') }} мм{% endif %}</figcaption>{% endif %}
+      </figure>
       {% endif %}
     </div>
 
@@ -30,6 +36,8 @@
         {% if product.length_m %}<tr><th scope="row">Длина</th><td>{{ product.length_m | num }} м</td></tr>{% endif %}
         {% if product.weight_per_m_kg %}<tr><th scope="row">Вес 1 м</th><td>{{ product.weight_per_m_kg | num }} кг</td></tr>{% endif %}
         {% if product.length_m and product.weight_per_m_kg %}<tr><th scope="row">Вес 1 шт.</th><td>{{ (product.length_m * product.weight_per_m_kg) | round(2) | string | replace('.', ',') }} кг</td></tr>{% endif %}
+        {% if product.attrs and product.attrs.get('format') %}<tr><th scope="row">Формат листа</th><td>{{ product.attrs.get('format') }} мм</td></tr>{% endif %}
+        {% if product.attrs and product.attrs.get('sheet_kg') %}<tr><th scope="row">Вес листа</th><td>{{ product.attrs.get('sheet_kg') | num }} кг</td></tr>{% endif %}
         {% if product.sku %}<tr><th scope="row">Артикул</th><td>{{ product.sku }}</td></tr>{% endif %}
       </table>
 

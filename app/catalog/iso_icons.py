@@ -297,6 +297,7 @@ CATEGORY_SHAPES = (
     ("shtaketnik", "profnastil"),
     ("setka", "mesh"),
     ("svai", "pile"),
+    ("fiting", "pipe"),
 )
 
 

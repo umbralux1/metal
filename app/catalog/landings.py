@@ -213,7 +213,8 @@ def product_seo_text(product: Product) -> str:
         if x
     ]
     if facts:
-        sentences.append(", ".join(facts).capitalize() + ".")
+        line = ", ".join(facts)
+        sentences.append(line[:1].upper() + line[1:] + ".")
     meter = product.price_for(Unit.METER)
     if meter and product.length_m:
         piece_kop = round(meter.amount_kop * float(product.length_m))
@@ -274,7 +275,7 @@ async def generate_landings(
             continue
         groups: dict[tuple[Decimal, ...], list[Product]] = defaultdict(list)
         for p in products:
-            if not p.category or not _in_subtree(p.category.path, root.path):
+            if not p.category or not rule.covers(p.category.path):
                 continue
             values = tuple(getattr(p, key) for key in rule.keys)
             if all(v is not None for v in values):

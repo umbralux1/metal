@@ -222,6 +222,9 @@ p { margin: 0 0 12px; }
 .btn-ghost { background: var(--surface); color: var(--ink); border: 1px solid var(--line); }
 .btn-ghost:hover { background: #f3f5f7; color: var(--ink); border-color: var(--muted); }
 
+.drawing-icon { display: grid; place-items: center; min-height: 300px; }
+.drawing-icon .icon { width: min(70%, 320px); height: auto; aspect-ratio: 1; color: var(--ink); }
+
 /* Карточка: другие варианты размера и соседние размеры */
 .related { margin: 0 0 32px; }
 .related h2 { font-size: 22px; margin-bottom: 14px; }
@@ -246,7 +249,7 @@ p { margin: 0 0 12px; }
 .contacts-map { min-height: 440px; border: 1px solid var(--line-soft); border-radius: var(--radius-m); overflow: hidden; background: #e9edf0; }
 .contacts-map iframe { display: block; width: 100%; height: 100%; min-height: 440px; border: 0; }
 
-.calc-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin: 20px 0 4px; background: var(--line-soft); border: 1px solid var(--line-soft); border-radius: var(--radius-m); overflow: hidden; }
+.calc-summary { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 1px; margin: 20px 0 4px; background: var(--line-soft); border: 1px solid var(--line-soft); border-radius: var(--radius-m); overflow: hidden; }
 .calc-summary div { background: #f8fafb; padding: 10px 12px; }
 .calc-summary dt { font-size: 13px; color: var(--muted); }
 .calc-summary dd { margin: 0; font-weight: 650; font-size: 17px; }

@@ -9,6 +9,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.catalog.demo_catalog import sync_demo_catalog
 from app.catalog.landings import generate_landings
 from app.catalog.models import Category, FilterLanding, Price, Product, Unit
 from app.catalog.utils import normalize_search, slugify
@@ -40,9 +41,23 @@ def _landing(category: Category, slug: str, name: str, filters: dict, **kw) -> F
 
 
 async def seed(session: AsyncSession) -> bool:
-    """Заполняет пустую базу. Возвращает False, если данные уже есть."""
+    """Демо-данные: базовый набор в пустую базу, затем недостающие разделы и товары демо-каталога.
+
+    Можно запускать на заполненной базе — существующее не меняется, добавляется только новое.
+    Возвращает True, если что-то добавилось.
+    """
+    fresh = await _seed_base(session)
+    report = await sync_demo_catalog(session)
+    if fresh or report.products or report.categories:
+        await generate_landings(session, fresh_ids=fresh | report.product_ids)
+        return True
+    return False
+
+
+async def _seed_base(session: AsyncSession) -> set[int]:
+    """Исходный набор (на нём держатся тесты: цены, адреса). Только в пустую базу."""
     if await session.scalar(select(Category.id).limit(1)):
-        return False
+        return set()
 
     armatura = _category(
         "armatura",
@@ -195,8 +210,7 @@ async def seed(session: AsyncSession) -> bool:
 
     session.add_all([armatura, a500c, a1, truba, kvadr, pryam, *products, *landings])
     await session.commit()
-    await generate_landings(session, fresh_ids={p.id for p in products})
-    return True
+    return {p.id for p in products}
 
 
 async def main() -> None:

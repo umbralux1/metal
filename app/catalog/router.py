@@ -148,7 +148,8 @@ def _calc_context(product: Product, params) -> dict:
 
 
 def _params_from(inp) -> dict:
-    return {"unit": inp.unit, "qty": f"{inp.quantity.normalize():f}" if inp.quantity is not None else ""}
+    qty = f"{inp.quantity.normalize():f}".replace(".", ",") if inp.quantity is not None else ""
+    return {"unit": inp.unit, "qty": qty}
 
 
 @router.get("/api/calc/{product_id}/", response_class=HTMLResponse, include_in_schema=False)
