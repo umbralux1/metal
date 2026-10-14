@@ -53,3 +53,22 @@ class NoIndexMiddleware:
             await send(message)
 
         await self.app(scope, receive, send_with_header)
+
+
+class HeadAsGetMiddleware:
+    """HEAD отвечает как GET, но без тела. Им пользуются Render, мониторинги и иногда поисковые роботы."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or scope["method"] != "HEAD":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_without_body(message):
+            if message["type"] == "http.response.body":
+                message = {**message, "body": b""}
+            await send(message)
+
+        await self.app({**scope, "method": "GET"}, receive, send_without_body)

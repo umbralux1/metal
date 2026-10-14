@@ -28,13 +28,25 @@ pytest                                   # тесты, в т. ч. SEO-контр
    Render спросит `PHONE` и `EMAIL` — их видно на сайте.
 3. Через пару минут сайт откроется по адресу вида `https://metal-web.onrender.com`.
 
-При каждом запуске `scripts/render-start.sh` применяет миграции (`alembic upgrade head`),
-при `SEED_DEMO=true` загружает демо-товары и запускает uvicorn. Каждый push в `main` деплоится автоматически.
+При каждом запуске `python main.py` (его вызывает `scripts/render-start.sh`) применяет миграции,
+при `SEED_DEMO=true` загружает демо-товары и запускает uvicorn на `0.0.0.0:$PORT`. Каждый push в `main` деплоится автоматически.
 
 Пока сайт живёт на `*.onrender.com`, он закрыт от поисковиков (`ALLOW_INDEXING=false`): robots.txt запрещает
 всё, а каждый ответ получает `X-Robots-Tag: noindex`. Это нужно, чтобы тестовая копия не попала в индекс
 раньше основного домена. Когда подключите свой домен (Settings → Custom Domains), поменяйте в Environment:
 `SITE_URL=https://ваш-домен.ru`, `ALLOW_INDEXING=true`, `SEED_DEMO=false`.
+
+### Если сервис создан вручную (New → Web Service)
+
+1. Сначала создайте базу: **New → Postgres**, регион тот же, что у сервиса. Скопируйте **Internal Database URL**.
+2. В настройках веб-сервиса:
+   - **Build Command:** `pip install -r requirements.txt`
+   - **Start Command:** `python main.py` — на хостинге он сам применит миграции и запустит сервер на `0.0.0.0:$PORT`
+   - **Health Check Path:** `/health`
+3. **Environment:** `DATABASE_URL` = Internal Database URL из шага 1, `ALLOW_INDEXING=false`, `SEED_DEMO=true`,
+   `PHONE`, `EMAIL`.
+
+Без `DATABASE_URL` приложение на Render сразу остановится с подсказкой, что переменная не задана.
 
 Ограничения бесплатного тарифа Render ([подробнее](https://render.com/docs/free)):
 - веб-сервис засыпает после 15 минут без запросов, первый запрос после сна идёт медленно;

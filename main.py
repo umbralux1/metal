@@ -1,8 +1,41 @@
-"""Точка входа для запуска из PyCharm. Само приложение — в app/main.py."""
+"""Точка входа: `python main.py`.
 
-from app.main import app  # noqa: F401
+Локально — сервер для разработки на 127.0.0.1:8000 с автоперезагрузкой.
+На хостинге (задана переменная PORT, как на Render) — миграции, демо-данные при SEED_DEMO=true
+и боевой запуск на 0.0.0.0:$PORT без автоперезагрузки.
+"""
+
+import os
+
+
+def server_options(env: dict[str, str]) -> dict:
+    on_host = "PORT" in env
+    return {
+        "host": "0.0.0.0" if on_host else "127.0.0.1",
+        "port": int(env.get("PORT", 8000)),
+        "reload": not on_host,
+        "proxy_headers": True,
+        "forwarded_allow_ips": "*" if on_host else "127.0.0.1",
+    }
+
+
+def prepare_database(env: dict[str, str]) -> None:
+    """На хостинге перед стартом: схема БД и (по желанию) демо-данные."""
+    import asyncio
+
+    from alembic.config import main as alembic
+
+    alembic(argv=["upgrade", "head"])
+    if env.get("SEED_DEMO", "false").lower() == "true":
+        from app.catalog.seed import main as seed
+
+        asyncio.run(seed())
+
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
+    options = server_options(dict(os.environ))
+    if not options["reload"]:
+        prepare_database(dict(os.environ))
+    uvicorn.run("app.main:app", **options)

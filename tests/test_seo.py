@@ -158,3 +158,15 @@ async def test_product_page_has_section_drawing(client):
     r = await client.get("/catalog/truba-profilnaya/kvadratnaya/truba-profilnaya-40x40x2/")
     assert 'class="section-drawing"' in r.text
     assert "t = 2" in r.text
+
+
+@pytest.mark.parametrize("url", ["/", "/catalog/armatura/", "/health", "/sitemap.xml"])
+async def test_head_requests(client, url):
+    r = await client.head(url)
+    assert r.status_code == 200
+    assert r.content == b""
+
+
+async def test_head_keeps_redirects(client):
+    r = await client.head("/catalog/armatura")
+    assert r.status_code == 301

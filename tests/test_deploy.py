@@ -40,3 +40,22 @@ async def test_noindex_header_middleware():
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
         r = await c.get("/")
     assert r.headers.get_list("x-robots-tag") == ["noindex, nofollow"]
+
+
+def test_render_without_database_url_fails_with_clear_message(monkeypatch):
+    import pytest
+    from pydantic import ValidationError
+
+    monkeypatch.setenv("RENDER", "true")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    with pytest.raises(ValidationError, match="DATABASE_URL"):
+        Settings(_env_file=None)
+
+
+def test_main_server_options():
+    from main import server_options
+
+    local = server_options({})
+    assert local["host"] == "127.0.0.1" and local["port"] == 8000 and local["reload"] is True
+    hosted = server_options({"PORT": "10000"})
+    assert hosted["host"] == "0.0.0.0" and hosted["port"] == 10000 and hosted["reload"] is False

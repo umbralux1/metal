@@ -46,6 +46,16 @@ class Settings(BaseSettings):
         return url
 
     @model_validator(mode="after")
+    def _require_database_on_render(self) -> "Settings":
+        """На Render без DATABASE_URL приложение стучалось бы в localhost и отдавало 500 — лучше упасть сразу."""
+        if os.environ.get("RENDER") and "database_url" not in self.model_fields_set:
+            raise ValueError(
+                "На Render не задана переменная DATABASE_URL. Создайте базу PostgreSQL (New → Postgres) "
+                "и добавьте её Internal Database URL в Environment сервиса — или разверните проект через Blueprint."
+            )
+        return self
+
+    @model_validator(mode="after")
     def _site_url_from_render(self) -> "Settings":
         """Если SITE_URL не задан, на Render берём его адрес вида https://metal-web.onrender.com."""
         if "site_url" not in self.model_fields_set and os.environ.get("RENDER_EXTERNAL_URL"):
