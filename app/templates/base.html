@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ meta.title }}</title>
+  {% if meta.description %}<meta name="description" content="{{ meta.description }}">{% endif %}
+  <link rel="canonical" href="{{ meta.canonical }}">
+  {% if meta.robots %}<meta name="robots" content="{{ meta.robots }}">{% endif %}
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="ru_RU">
+  <meta property="og:site_name" content="{{ settings.site_name }}">
+  <meta property="og:title" content="{{ meta.title }}">
+  {% if meta.description %}<meta property="og:description" content="{{ meta.description }}">{% endif %}
+  <meta property="og:url" content="{{ meta.canonical }}">
+  <link rel="stylesheet" href="/static/css/main.css">
+  {% for block in jsonld | default([]) %}
+  <script type="application/ld+json">{{ block | safe }}</script>
+  {% endfor %}
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-row">
+      <a class="logo" href="/">{{ settings.site_name }}</a>
+      <nav class="main-nav" aria-label="Основное меню">
+        <a href="/catalog/">Каталог</a>
+      </nav>
+      <a class="phone" href="tel:{{ settings.phone | replace(' ', '') | replace('(', '') | replace(')', '') | replace('-', '') }}">{{ settings.phone }}</a>
+    </div>
+  </header>
+
+  <main class="container">
+    {% if breadcrumbs %}
+    <nav class="breadcrumbs" aria-label="Хлебные крошки">
+      <ol>
+        {% for name, url in breadcrumbs %}
+          {% if loop.last %}<li aria-current="page">{{ name }}</li>
+          {% else %}<li><a href="{{ url }}">{{ name }}</a></li>{% endif %}
+        {% endfor %}
+      </ol>
+    </nav>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>{{ settings.site_name }} · {{ settings.city }} · <a href="tel:{{ settings.phone | replace(' ', '') | replace('(', '') | replace(')', '') | replace('-', '') }}">{{ settings.phone }}</a> · <a href="mailto:{{ settings.email }}">{{ settings.email }}</a></p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ meta.h1 }}</h1>
+
+{% if children %}
+<ul class="tiles">
+  {% for c in children %}<li><a href="{{ c.url }}">{{ c.name }}</a></li>{% endfor %}
+</ul>
+{% endif %}
+
+{% if landings %}
+<nav class="chips-block" aria-label="По размеру">
+  <p class="muted">По размеру:</p>
+  <ul class="chips">
+    {% for l in landings %}<li><a href="{{ l.url }}">{{ l.name }}</a></li>{% endfor %}
+  </ul>
+</nav>
+{% endif %}
+
+{% include "catalog/_products_table.html" %}
+
+{% if node.seo_text and products.page == 1 %}
+<section class="seo-text">{{ node.seo_text | safe }}</section>
+{% endif %}
+{% endblock %}

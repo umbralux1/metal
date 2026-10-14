@@ -1,0 +1,23 @@
+# Быстрая проверка страниц из PyCharm (сервер: python main.py)
+
+GET http://127.0.0.1:8000/
+###
+
+GET http://127.0.0.1:8000/catalog/armatura/
+###
+
+GET http://127.0.0.1:8000/catalog/armatura/12-mm/
+###
+
+GET http://127.0.0.1:8000/catalog/armatura/a500c/armatura-12-mm-a500s/
+###
+
+# Должен вернуть 301 на /catalog/armatura/
+GET http://127.0.0.1:8000/Catalog/Armatura
+###
+
+GET http://127.0.0.1:8000/sitemap.xml
+###
+
+GET http://127.0.0.1:8000/health
+###

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<article class="product">
+  <h1>{{ meta.h1 }}</h1>
+  <p class="stock {{ 'in' if product.in_stock else 'out' }}">{{ "В наличии" if product.in_stock else "Под заказ" }}</p>
+
+  <div class="prices">
+    {% for pr in product.prices %}
+      <p class="{{ 'price-main' if pr.unit == product.base_unit else 'price-alt' }}">{{ pr.amount_kop | rub }} за {{ pr.unit.label }}</p>
+    {% else %}
+      <p class="price-main">Цена по запросу</p>
+    {% endfor %}
+    <a class="btn" href="tel:{{ settings.phone | replace(' ', '') | replace('(', '') | replace(')', '') | replace('-', '') }}">Заказать по телефону</a>
+  </div>
+
+  <h2>Характеристики</h2>
+  <table class="specs">
+    {% if product.size_label %}<tr><th>Размер</th><td>{{ product.size_label }}</td></tr>{% endif %}
+    {% if product.steel_grade %}<tr><th>Марка / класс</th><td>{{ product.steel_grade }}</td></tr>{% endif %}
+    {% if product.gost %}<tr><th>ГОСТ / ТУ</th><td>{{ product.gost }}</td></tr>{% endif %}
+    {% if product.length_m %}<tr><th>Длина, м</th><td>{{ product.length_m | num }}</td></tr>{% endif %}
+    {% if product.weight_per_m_kg %}<tr><th>Вес 1 м, кг</th><td>{{ product.weight_per_m_kg | num }}</td></tr>{% endif %}
+    {% if product.sku %}<tr><th>Артикул</th><td>{{ product.sku }}</td></tr>{% endif %}
+  </table>
+
+  {% if product.seo_text %}<section class="seo-text">{{ product.seo_text | safe }}</section>{% endif %}
+</article>
+{% endblock %}

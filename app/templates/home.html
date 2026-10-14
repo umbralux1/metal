@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ meta.h1 }}</h1>
+<p class="lead">Розница от 1 штуки, резка в размер, доставка по {{ settings.city_prepositional }} и области в день заказа.</p>
+
+<section>
+  <h2>Каталог</h2>
+  <ul class="tiles">
+    {% for c in categories %}<li><a href="{{ c.url }}">{{ c.name }}</a></li>{% endfor %}
+  </ul>
+</section>
+
+{% if landings %}
+<section>
+  <h2>Популярные размеры</h2>
+  <ul class="chips">
+    {% for l in landings %}<li><a href="{{ l.url }}">{{ l.name }}</a></li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}
