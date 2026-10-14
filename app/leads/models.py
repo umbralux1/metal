@@ -20,3 +20,6 @@ class Lead(TimestampMixin, Base):
     comment: Mapped[str] = mapped_column(Text, default="", server_default="")
     calc: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
     status: Mapped[str] = mapped_column(String(20), default="new", server_default="new", index=True)
+
+    def __str__(self) -> str:
+        return f"Заявка №{self.id}: {self.product_name}, {self.phone}"

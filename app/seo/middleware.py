@@ -5,7 +5,7 @@ import re
 from starlette.responses import RedirectResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-SKIP_PREFIXES = ("/static/", "/docs", "/redoc", "/openapi.json", "/health")
+SKIP_PREFIXES = ("/static/", "/docs", "/redoc", "/openapi.json", "/health", "/admin")
 
 
 def canonical_path(path: str) -> str | None:

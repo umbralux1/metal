@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog import repository as repo
@@ -75,6 +75,8 @@ async def catalog_node(
         return await _render_landing(request, session, landing, page)
     if (product := await repo.get_product(session, path)) and page == 1:
         return await _render_product(request, session, product)
+    if target := await repo.inactive_parent_url(session, path):
+        return RedirectResponse(target, status_code=301)
     raise HTTPException(status_code=404)
 
 

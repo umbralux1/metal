@@ -1,7 +1,8 @@
 import os
+import secrets
 from functools import lru_cache
 
-from pydantic import field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,6 +32,12 @@ class Settings(BaseSettings):
     allow_indexing: bool = True
 
     page_size: int = 24
+
+    # Админка на /admin. Пустой пароль — админка выключена.
+    admin_username: str = "admin"
+    admin_password: str = ""
+    # Ключ для подписи сессии админки. Если не задан, генерируется при запуске (сессии сбросятся после рестарта).
+    secret_key: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
 
     # Калькулятор: цена одного реза и с какого веса действует цена за тонну
     cut_price_kop: int = 5000

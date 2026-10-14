@@ -37,6 +37,6 @@ class NavMiddleware:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] == "http" and not scope["path"].startswith(("/static/", "/api/", "/health")):
+        if scope["type"] == "http" and not scope["path"].startswith(("/static/", "/api/", "/health", "/admin")):
             scope.setdefault("state", {})["nav"] = await nav_categories()
         await self.app(scope, receive, send)

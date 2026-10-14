@@ -56,7 +56,8 @@ class Category(TimestampMixin, SeoMixin, Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     parent_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id", ondelete="RESTRICT"), index=True)
-    slug: Mapped[str] = mapped_column(String(120))
+    # default="" — в админке поле необязательное: пустой slug собирается из названия
+    slug: Mapped[str] = mapped_column(String(120), default="")
     # Полный путь без /catalog/: «armatura/a500c». По нему идёт роутинг.
     path: Mapped[str] = mapped_column(String(500), unique=True)
     name: Mapped[str] = mapped_column(String(255))
@@ -69,6 +70,9 @@ class Category(TimestampMixin, SeoMixin, Base):
     @property
     def url(self) -> str:
         return f"/catalog/{self.path}/"
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.path})" if self.path else self.name or "Новый раздел"
 
 
 class Product(TimestampMixin, SeoMixin, Base):
@@ -84,7 +88,7 @@ class Product(TimestampMixin, SeoMixin, Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     category_id: Mapped[int] = mapped_column(ForeignKey("categories.id", ondelete="RESTRICT"), index=True)
-    slug: Mapped[str] = mapped_column(String(160))
+    slug: Mapped[str] = mapped_column(String(160), default="")
     path: Mapped[str] = mapped_column(String(500), unique=True)
     name: Mapped[str] = mapped_column(String(255))
     sku: Mapped[str | None] = mapped_column(String(64), unique=True)
@@ -112,6 +116,9 @@ class Product(TimestampMixin, SeoMixin, Base):
     @property
     def url(self) -> str:
         return f"/catalog/{self.path}/"
+
+    def __str__(self) -> str:
+        return self.name or "Новый товар"
 
     def price_for(self, unit: Unit) -> "Price | None":
         return next((p for p in self.prices if p.unit == unit), None)
@@ -148,6 +155,13 @@ class Price(Base):
 
     product: Mapped[Product] = relationship(back_populates="prices")
 
+    def __str__(self) -> str:
+        if self.amount_kop is None or self.unit is None:
+            return "Новая цена"
+        rub, kop = divmod(self.amount_kop, 100)
+        whole = f"{rub:,}".replace(",", "\u00a0")
+        return (f"{whole},{kop:02d}" if kop else whole) + f"\u00a0₽/{Unit(self.unit).label}"
+
 
 class FilterLanding(TimestampMixin, SeoMixin, Base):
     """SEO-страница фильтра: раздел + набор значений, например «Арматура 12 мм»."""
@@ -157,7 +171,7 @@ class FilterLanding(TimestampMixin, SeoMixin, Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     category_id: Mapped[int] = mapped_column(ForeignKey("categories.id", ondelete="CASCADE"), index=True)
-    slug: Mapped[str] = mapped_column(String(160))
+    slug: Mapped[str] = mapped_column(String(160), default="")
     path: Mapped[str] = mapped_column(String(500), unique=True)
     name: Mapped[str] = mapped_column(String(255))
     # {"diameter_mm": 12} или {"width_mm": 40, "height_mm": 40}; список значений — условие IN
@@ -171,6 +185,9 @@ class FilterLanding(TimestampMixin, SeoMixin, Base):
     def url(self) -> str:
         return f"/catalog/{self.path}/"
 
+    def __str__(self) -> str:
+        return self.name or "Новая посадочная"
+
 
 class Redirect(TimestampMixin, Base):
     __tablename__ = "redirects"
@@ -179,3 +196,6 @@ class Redirect(TimestampMixin, Base):
     from_path: Mapped[str] = mapped_column(String(500), unique=True)
     to_path: Mapped[str] = mapped_column(String(500))
     status_code: Mapped[int] = mapped_column(Integer, default=301, server_default="301")
+
+    def __str__(self) -> str:
+        return f"{self.from_path} → {self.to_path}"

@@ -146,3 +146,20 @@ async def search_products(session: AsyncSession, query: str, limit: int = 60) ->
         stmt = stmt.where(Product.search_text.contains(token, autoescape=True))
     stmt = stmt.order_by(func.similarity(Product.search_text, norm).desc(), Product.name).limit(limit)
     return list(await session.scalars(stmt))
+
+
+async def inactive_parent_url(session: AsyncSession, path: str) -> str | None:
+    """Выключенный товар или раздел: куда перенаправить (ближайший активный раздел выше или каталог)."""
+    hidden = await session.scalar(select(Product.id).where(Product.path == path, Product.is_active.is_(False)))
+    hidden = hidden or await session.scalar(
+        select(Category.id).where(Category.path == path, Category.is_active.is_(False))
+    )
+    if not hidden:
+        return None
+    parts = path.split("/")[:-1]
+    while parts:
+        candidate = "/".join(parts)
+        if await session.scalar(select(Category.id).where(Category.path == candidate, Category.is_active.is_(True))):
+            return f"/catalog/{candidate}/"
+        parts.pop()
+    return "/catalog/"

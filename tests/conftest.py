@@ -1,5 +1,8 @@
 import os
 
+# Админка в тестах включена с известным паролем
+os.environ["ADMIN_USERNAME"] = "admin"
+os.environ["ADMIN_PASSWORD"] = "test-admin-pass"
 # Тесты всегда идут на отдельную базу metal_test (создаётся docker/postgres/init.sql)
 os.environ["DATABASE_URL"] = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+psycopg://metal:metal@localhost:5433/metal_test"
