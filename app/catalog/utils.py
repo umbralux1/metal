@@ -54,3 +54,23 @@ def slugify(text: str) -> str:
     out = "".join(_TRANSLIT.get(ch, ch) for ch in text)
     out = re.sub(r"[^a-z0-9]+", "-", out)
     return out.strip("-")
+
+
+# Латинская раскладка вместо русской: «fhvfnehf» → «арматура» (клавиши ЙЦУКЕН на месте QWERTY)
+_EN = "`qwertyuiop[]asdfghjkl;'zxcvbnm,."
+_RU = "ёйцукенгшщзхъфывапролджэячсмитьбю"
+_LAYOUT = str.maketrans(
+    {**dict(zip(_EN, _RU, strict=True)), **{e.upper(): r.upper() for e, r in zip(_EN, _RU, strict=True) if e.isalpha()}}
+)
+
+
+def fix_layout(text: str) -> str | None:
+    """Текст, набранный латиницей в русской раскладке, — в кириллицу. None, если менять нечего.
+
+    Размеры вида «40x20» не трогаем: латинская x между цифрами — это разделитель, а не «ч».
+    """
+    if not re.search(r"[a-zA-Z]", text):
+        return None
+    parts = re.split(r"(\d+(?:[.,]\d+)?(?:\s*[xх×*]\s*\d+(?:[.,]\d+)?)*)", text)
+    fixed = "".join(part if i % 2 else part.translate(_LAYOUT) for i, part in enumerate(parts))
+    return fixed if fixed != text else None

@@ -87,6 +87,25 @@ p { margin: 0 0 12px; }
 .phone { font-size: 19px; font-weight: 700; text-decoration: none; letter-spacing: -0.01em; }
 .hours { font-size: 13px; color: var(--muted); }
 
+/* Подсказки поиска */
+.suggest {
+  position: absolute; z-index: 35; top: calc(100% + 6px); left: 0; right: 0; max-height: min(70vh, 520px); overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius-m);
+  box-shadow: 0 18px 40px rgba(27, 38, 48, .14); padding: 6px;
+}
+.suggest-item {
+  display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; align-items: baseline; gap: 10px;
+  padding: 10px 12px; border-radius: 7px; text-decoration: none; color: var(--ink);
+}
+.suggest-item:hover, .suggest-item.is-active { background: #f1f4f6; color: var(--ink); }
+.suggest-kind { font-size: 12px; color: var(--muted); }
+.suggest-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suggest-name mark { background: none; color: var(--accent); font-weight: 700; }
+.suggest-meta { font-size: 14px; color: var(--muted); white-space: nowrap; }
+.suggest-product .suggest-meta { color: var(--ink); font-weight: 600; }
+.suggest-all { display: block; margin-top: 4px; border-top: 1px solid var(--line-soft); border-radius: 0 0 7px 7px; color: var(--accent); font-weight: 600; }
+.suggest-note { margin: 6px 12px 8px; font-size: 14px; color: var(--muted); }
+
 /* Кнопка «Каталог» и выпадающее меню */
 .header-main { position: relative; }
 .catalog-dd { flex: none; }
@@ -325,6 +344,8 @@ p { margin: 0 0 12px; }
   .footer-about { grid-column: 1 / -1; }
   .contacts { grid-template-columns: 1fr; }
   .related-table th:nth-child(3), .related-table td:nth-child(3) { display: none; }
+  .suggest-item { grid-template-columns: minmax(0, 1fr) auto; }
+  .suggest-kind { display: none; }
   .contacts-map, .contacts-map iframe { min-height: 360px; }
 }
 

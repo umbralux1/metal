@@ -1,11 +1,14 @@
+from dataclasses import asdict
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog import repository as repo
 from app.catalog.calculator import CalcError, calculate, default_input, parse_input
 from app.catalog.landings import product_seo_text
 from app.catalog.models import Category, FilterLanding, Product
+from app.catalog.utils import fix_layout
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.templating import templates
@@ -55,10 +58,29 @@ async def catalog_index(request: Request, session: AsyncSession = Depends(get_se
     )
 
 
+@router.get("/api/suggest/", include_in_schema=False)
+async def suggest_api(q: str = "", session: AsyncSession = Depends(get_session)) -> JSONResponse:
+    """Автодополнение поиска. Ничего не нашлось по латинице — пробуем русскую раскладку («fhvfnehf» → «арматура»)."""
+    query = q.strip()[:100]
+    items, corrected = [], None
+    if len(query) >= 2:
+        items = await repo.suggest(session, query)
+        if not items and (fixed := fix_layout(query)):
+            items = await repo.suggest(session, fixed)
+            corrected = fixed if items else None
+    payload = {"query": query, "corrected": corrected, "items": [asdict(i) for i in items]}
+    headers = {"X-Robots-Tag": "noindex", "Cache-Control": "public, max-age=60"}
+    return JSONResponse(payload, headers=headers)
+
+
 @router.get("/search/", response_class=HTMLResponse, name="search")
 async def search(request: Request, q: str = "", session: AsyncSession = Depends(get_session)):
     query = q.strip()[:100]
     found = await repo.search_products(session, query) if query else []
+    corrected = None
+    if query and not found and (fixed := fix_layout(query)):
+        found = await repo.search_products(session, fixed)
+        corrected = fixed if found else None
     products = repo.ProductPage(items=found, total=len(found), page=1, pages=1)
     meta = PageMeta(
         title=f"Поиск «{query}» | {settings.site_name}" if query else f"Поиск по каталогу | {settings.site_name}",
@@ -67,7 +89,7 @@ async def search(request: Request, q: str = "", session: AsyncSession = Depends(
         canonical=absolute("/search/"),
         robots="noindex, follow",
     )
-    context = {"meta": meta, "q": query, "products": products}
+    context = {"meta": meta, "q": query, "products": products, "corrected": corrected}
     return templates.TemplateResponse(request, "search.html", context)
 
 

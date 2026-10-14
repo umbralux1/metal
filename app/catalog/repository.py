@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
@@ -171,17 +172,72 @@ async def min_price_kop(session: AsyncSession, category_path: str, filters: dict
     return await session.scalar(stmt)
 
 
-async def search_products(session: AsyncSession, query: str, limit: int = 60) -> list[Product]:
-    """Все слова запроса должны встретиться в search_text; сверху — самые похожие (pg_trgm)."""
+def _token_filter(column, token: str, prefix: bool):
+    """Слово — по подстроке («армат» → «арматура»). Число — только с начала числа, чтобы «50» не находилось
+    внутри «ГОСТ 8509-93»; целиком, если prefix=False (12 ≠ 120), или началом, если пользователь ещё печатает."""
+    if not any(ch.isdigit() for ch in token):
+        return column.contains(token, autoescape=True)
+    tail = "" if prefix else "([^0-9]|$)"
+    return column.op("~")(f"(^|[^0-9]){re.escape(token)}{tail}")
+
+
+async def search_products(
+    session: AsyncSession, query: str, limit: int = 60, prefix_last: bool = False
+) -> list[Product]:
+    """Все слова запроса должны встретиться в search_text; сверху — самые похожие (pg_trgm).
+
+    prefix_last — последнее слово может быть недописанным (автодополнение: «40х2» → «40х20»).
+    """
     norm = normalize_search(query)
     tokens = norm.split()[:6]
     if not tokens:
         return []
     stmt = select(Product).where(Product.is_active.is_(True))
-    for token in tokens:
-        stmt = stmt.where(Product.search_text.contains(token, autoescape=True))
+    for i, token in enumerate(tokens):
+        stmt = stmt.where(_token_filter(Product.search_text, token, prefix_last and i == len(tokens) - 1))
     stmt = stmt.order_by(func.similarity(Product.search_text, norm).desc(), Product.name).limit(limit)
     return list(await session.scalars(stmt))
+
+
+@dataclass
+class Suggestion:
+    kind: str  # category | landing | product
+    name: str
+    url: str
+    meta: str = ""
+
+
+async def suggest(session: AsyncSession, query: str, limit_products: int = 6) -> list[Suggestion]:
+    """Подсказки под строкой поиска: разделы, посадочные размеров и товары (те же правила, что у поиска)."""
+    from app.core.templating import format_rub
+
+    norm = normalize_search(query)
+    tokens = norm.split()[:6]
+    if not tokens:
+        return []
+    words = [t for t in tokens if not any(ch.isdigit() for ch in t)]
+    items: list[Suggestion] = []
+
+    if words and len(words) == len(tokens):
+        cats = select(Category).where(Category.is_active.is_(True))
+        for word in words:
+            cats = cats.where(func.lower(Category.name).contains(word, autoescape=True))
+        for c in await session.scalars(cats.order_by(func.length(Category.path), Category.sort).limit(3)):
+            items.append(Suggestion("category", c.name, c.url, "Раздел"))
+
+    # В названиях посадочных размер записан кириллической «х»: «Труба профильная 40х20»
+    landing_text = func.regexp_replace(func.lower(FilterLanding.name), r"(\d)\s*[хx×]\s*(\d)", r"\1x\2", "g")
+    landings = select(FilterLanding).where(FilterLanding.is_indexable.is_(True))
+    for i, token in enumerate(tokens):
+        landings = landings.where(_token_filter(landing_text, token, prefix=i == len(tokens) - 1))
+    for item in await session.scalars(landings.order_by(FilterLanding.sort, FilterLanding.name).limit(3)):
+        items.append(Suggestion("landing", item.name, item.url, "Все размеры"))
+
+    for p in await search_products(session, query, limit=limit_products, prefix_last=True):
+        price = p.base_price
+        meta = f"{format_rub(price.amount_kop)}/{price.unit.label}" if price else "Цена по запросу"
+        items.append(Suggestion("product", p.name, p.url, meta))
+    return items
 
 
 async def inactive_parent_url(session: AsyncSession, path: str) -> str | None:

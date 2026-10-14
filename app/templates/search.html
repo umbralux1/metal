@@ -2,6 +2,7 @@
 {% block content %}
 <h1>{{ meta.h1 }}</h1>
 {% if q %}
+  {% if corrected %}<p class="muted">Показываем результаты для «{{ corrected }}» — запрос был набран в английской раскладке.</p>{% endif %}
   {% if products.items %}
   <p class="muted">Нашли {{ products.total }} {{ 'позицию' if products.total % 10 == 1 and products.total % 100 != 11 else ('позиции' if products.total % 10 in [2,3,4] and products.total % 100 not in [12,13,14] else 'позиций') }}.</p>
   {% include "catalog/_products_table.html" %}
