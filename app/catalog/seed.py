@@ -9,6 +9,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.catalog.landings import generate_landings
 from app.catalog.models import Category, FilterLanding, Price, Product, Unit
 from app.catalog.utils import normalize_search, slugify
 from app.core.db import SessionLocal
@@ -81,6 +82,24 @@ async def seed(session: AsyncSession) -> bool:
             **rebar,
         ),
         _product(
+            a500c,
+            "Арматура 8 мм А500С",
+            {Unit.METER: 2150, Unit.TON: 5440000},
+            diameter_mm=D(8),
+            weight_per_m_kg=D("0.395"),
+            steel_grade="А500С",
+            **rebar,
+        ),
+        _product(
+            a1,
+            "Арматура 10 мм А1",
+            {Unit.METER: 3490, Unit.TON: 5650000},
+            diameter_mm=D(10),
+            weight_per_m_kg=D("0.617"),
+            steel_grade="А240",
+            **smooth,
+        ),
+        _product(
             a1,
             "Арматура 8 мм А1",
             {Unit.METER: 2290, Unit.TON: 5790000},
@@ -140,6 +159,16 @@ async def seed(session: AsyncSession) -> bool:
         ),
         _product(
             pryam,
+            "Труба профильная 40х20х1,5",
+            {Unit.METER: 11900},
+            width_mm=D(40),
+            height_mm=D(20),
+            thickness_mm=D("1.5"),
+            weight_per_m_kg=D("1.30"),
+            **tube,
+        ),
+        _product(
+            pryam,
             "Труба профильная 60х40х2",
             {Unit.METER: 24500},
             width_mm=D(60),
@@ -150,17 +179,23 @@ async def seed(session: AsyncSession) -> bool:
         ),
     ]
 
+    # Посадочные «по размеру» создаёт генератор (app/catalog/landings.py) после загрузки товаров.
+    # Здесь — только пример ручной закрытой комбинации: страница работает, но не индексируется.
     landings = [
-        _landing(armatura, "10-mm", "Арматура 10 мм", {"diameter_mm": 10}, sort=10),
-        _landing(armatura, "12-mm", "Арматура 12 мм", {"diameter_mm": 12}, sort=20),
-        # Пример закрытой комбинации: страница работает, но не индексируется и не попадает в sitemap
-        _landing(armatura, "8-mm", "Арматура 8 мм", {"diameter_mm": 8}, sort=30, is_indexable=False),
-        _landing(kvadr, "40x40", "Труба профильная 40х40", {"width_mm": 40, "height_mm": 40}, sort=10),
-        _landing(pryam, "40x20", "Труба профильная 40х20", {"width_mm": 40, "height_mm": 20}, sort=10),
+        _landing(
+            armatura,
+            "11-7-m",
+            "Арматура 11,7 м",
+            {"length_m": 11.7},
+            sort=900,
+            is_indexable=False,
+            h1="Арматура длиной 11,7 м",
+        ),
     ]
 
     session.add_all([armatura, a500c, a1, truba, kvadr, pryam, *products, *landings])
     await session.commit()
+    await generate_landings(session)
     return True
 
 

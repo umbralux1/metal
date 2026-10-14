@@ -1,5 +1,6 @@
 """Шаблоны мета-тегов. Ручные значения из БД (title, description, h1) всегда важнее шаблона."""
 
+import re
 from dataclasses import dataclass
 
 from starlette.requests import Request
@@ -7,6 +8,8 @@ from starlette.requests import Request
 from app.catalog.models import Category, FilterLanding, Product
 from app.core.config import settings
 from app.core.templating import format_rub
+
+PRICE_TOKEN = "{price}"
 
 
 @dataclass
@@ -31,6 +34,15 @@ def robots_for(request: Request, indexable: bool = True) -> str | None:
     return None
 
 
+def with_price(text: str, min_kop: int | None) -> str:
+    """{price} в ручных и сгенерированных текстах → «от 43,25 ₽»; цены нет — токен убирается."""
+    if PRICE_TOKEN not in text:
+        return text
+    if min_kop:
+        return text.replace(PRICE_TOKEN, f"от {format_rub(min_kop)}")
+    return re.sub(r"\s*\{price\}", "", text)
+
+
 def _from_price(min_kop: int | None) -> str:
     return f" по цене от {format_rub(min_kop)}" if min_kop else ""
 
@@ -38,9 +50,12 @@ def _from_price(min_kop: int | None) -> str:
 def category_meta(request: Request, category: Category, min_kop: int | None) -> PageMeta:
     s = settings
     return PageMeta(
-        title=category.title or f"{category.name} купить в {city_prep()} — цена за метр и тонну | {s.site_name}",
-        description=category.description
-        or f"{category.name} в наличии на складе{_from_price(min_kop)}. Доставка по {city_dat()} и области "
+        title=with_price(category.title, min_kop)
+        if category.title
+        else f"{category.name} купить в {city_prep()} — цена за метр и тонну | {s.site_name}",
+        description=with_price(category.description, min_kop)
+        if category.description
+        else f"{category.name} в наличии на складе{_from_price(min_kop)}. Доставка по {city_dat()} и области, "
         f"резка в размер, продажа от 1 штуки. ☎ {s.phone}",
         h1=category.h1 or category.name,
         canonical=absolute(category.url),
@@ -51,9 +66,12 @@ def category_meta(request: Request, category: Category, min_kop: int | None) -> 
 def landing_meta(request: Request, landing: FilterLanding, min_kop: int | None) -> PageMeta:
     s = settings
     return PageMeta(
-        title=landing.title or f"{landing.name} купить в {city_prep()}{_from_price(min_kop)} с доставкой",
-        description=landing.description
-        or f"{landing.name}{_from_price(min_kop)}: ГОСТ, в наличии на складе. Доставка по {city_dat()} "
+        title=with_price(landing.title, min_kop)
+        if landing.title
+        else f"{landing.name} купить в {city_prep()}{_from_price(min_kop)} с доставкой",
+        description=with_price(landing.description, min_kop)
+        if landing.description
+        else f"{landing.name}{_from_price(min_kop)}: ГОСТ, в наличии на складе. Доставка по {city_dat()} "
         f"и области, резка в размер. ☎ {s.phone}",
         h1=landing.h1 or landing.name,
         canonical=absolute(landing.url),

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>{{ meta.h1 }}</h1>
-<ul class="tiles tiles-lg">
-  {% for c in categories %}<li><a href="{{ c.url }}">{{ category_icon(c.slug) }}<span>{{ c.name }}</span></a></li>{% endfor %}
-</ul>
+<nav class="catalog-page" aria-label="Разделы каталога">
+  {% with items = request.state.nav or categories %}{% include "catalog/_menu.html" %}{% endwith %}
+</nav>
 {% endblock %}

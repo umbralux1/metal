@@ -160,39 +160,8 @@ def hero_svg() -> Markup:
     )
 
 
-# Маленькие значки разделов: сечение профиля одной линией
-ICONS = {
-    "rebar": '<circle cx="12" cy="12" r="6.5"/><path d="M5.5 9.5q-2 2.5 0 5M18.5 9.5q2 2.5 0 5"/>',
-    "round": '<circle cx="12" cy="12" r="7"/>',
-    "tube_round": '<circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="5"/>',
-    "tube_rect": '<rect x="4.5" y="4.5" width="15" height="15" rx="2"/><rect x="7.5" y="7.5" width="9" height="9" rx=".8"/>',
-    "angle": '<path d="M6 4.5v15h13.5v-3H9V4.5z"/>',
-    "channel": '<path d="M18 4.5H6v15h12v-2.5H8.8V7H18z"/>',
-    "beam": '<path d="M5 4.5h14v2.5h-5.6v10h5.6v2.5H5V17h5.6V7H5z"/>',
-    "plate": '<rect x="3.5" y="10" width="17" height="4" rx=".5"/>',
-    "mesh": '<path d="M4 8h16M4 12h16M4 16h16M8 4v16M12 4v16M16 4v16"/>',
-    "sheet": '<path d="M4 15l8-4 8 4-8 4z"/><path d="M4 12l8-4 8 4"/>',
-}
-
-# Какой значок у раздела: по началу slug корневого раздела
-CATEGORY_ICON = {
-    "armatura": "rebar",
-    "truba-profilnaya": "tube_rect",
-    "truba": "tube_round",
-    "ugolok": "angle",
-    "shveller": "channel",
-    "balka": "beam",
-    "polosa": "plate",
-    "kvadrat": "tube_rect",
-    "list": "sheet",
-    "profnastil": "sheet",
-    "setka": "mesh",
-}
-
-
 def category_icon(slug: str) -> Markup:
-    key = next((icon for prefix, icon in CATEGORY_ICON.items() if slug.startswith(prefix)), "plate")
-    return Markup(
-        '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" '
-        f'stroke-width="1.5" stroke-linejoin="round">{ICONS[key]}</svg>'
-    )
+    """Объёмный значок раздела (app/catalog/iso_icons.py)."""
+    from app.catalog.iso_icons import iso_icon
+
+    return iso_icon(slug)

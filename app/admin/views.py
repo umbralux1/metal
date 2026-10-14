@@ -3,12 +3,14 @@
 from typing import Any
 
 from fastapi import FastAPI
-from sqladmin import Admin, ModelView
+from sqladmin import Admin, ModelView, action
 from starlette.requests import Request
+from starlette.responses import RedirectResponse
 from wtforms import SelectField
 
 from app.admin.auth import AdminAuth
 from app.catalog import paths
+from app.catalog.landings import generate_landings
 from app.catalog.models import Category, FilterLanding, Price, Product, Redirect, Unit
 from app.catalog.repository import FILTERABLE_COLUMNS
 from app.catalog.utils import normalize_search, slugify
@@ -92,6 +94,8 @@ class CategoryAdmin(ModelView, model=Category):
                 raise ValueError(f"Адрес {paths.url(new_path)} уже занят другой страницей")
         model._old_path = None if is_created else model.path
         data["path"] = new_path
+        # Правка руками: генератор больше не трогает эту посадочную
+        model.is_generated = False
 
     async def after_model_change(self, data: dict, model: Category, is_created: bool, request: Request) -> None:
         old = getattr(model, "_old_path", None)
@@ -182,6 +186,8 @@ class ProductAdmin(ModelView, model=Product):
                 raise ValueError(f"Адрес {paths.url(new_path)} уже занят другой страницей")
         model._old_path = None if is_created else model.path
         data["path"] = new_path
+        # Правка руками: генератор больше не трогает эту посадочную
+        model.is_generated = False
         data["search_text"] = normalize_search(
             " ".join(_clean(data.get(k)) for k in ("name", "sku", "steel_grade", "gost"))
         )
@@ -222,12 +228,19 @@ class FilterLandingAdmin(ModelView, model=FilterLanding):
     icon = "fa-solid fa-filter"
     category = "Каталог"
 
-    column_list = [FilterLanding.name, FilterLanding.path, FilterLanding.filters, FilterLanding.is_indexable]
+    column_list = [
+        FilterLanding.name,
+        FilterLanding.path,
+        FilterLanding.filters,
+        FilterLanding.is_indexable,
+        FilterLanding.is_generated,
+    ]
     column_labels = {
         "name": "Название",
         "path": "Адрес",
         "filters": "Фильтр",
         "is_indexable": "В индексе",
+        "is_generated": "Авто",
         "category": "Раздел",
         "slug": "Slug",
         "sort": "Порядок",
@@ -258,8 +271,24 @@ class FilterLandingAdmin(ModelView, model=FilterLanding):
             "description": "Снимите — страница останется для людей, но получит noindex и уйдёт из sitemap."
         },
         **{k: v for k, v in SEO_HELP.items() if k != "slug"},
+        "title": {"description": "{price} подставит минимальную цену: «от 43,25 ₽». Пусто — по шаблону."},
+        "description": {"description": "{price} подставит минимальную цену. Пусто — по шаблону."},
     }
     form_widget_args = {"seo_text": {"rows": 10}}
+
+    @action(
+        name="generate",
+        label="Обновить посадочные из каталога",
+        confirmation_message="Создать посадочные под размеры из каталога и обновить автоматические? "
+        "Ручные посадочные не изменятся.",
+        add_in_detail=False,
+    )
+    async def generate(self, request: Request) -> RedirectResponse:
+        async with SessionLocal() as session:
+            await generate_landings(session)
+        reset_nav_cache()
+        return RedirectResponse(request.url_for("admin:list", identity=self.identity), status_code=302)
+
     form_ajax_refs = {"category": {"fields": ("name", "path"), "order_by": "path"}}
 
     async def on_model_change(self, data: dict, model: FilterLanding, is_created: bool, request: Request) -> None:
@@ -279,6 +308,8 @@ class FilterLandingAdmin(ModelView, model=FilterLanding):
                 raise ValueError(f"Адрес {paths.url(new_path)} уже занят другой страницей")
         model._old_path = None if is_created else model.path
         data["path"] = new_path
+        # Правка руками: генератор больше не трогает эту посадочную
+        model.is_generated = False
 
     async def after_model_change(self, data: dict, model: FilterLanding, is_created: bool, request: Request) -> None:
         old = getattr(model, "_old_path", None)

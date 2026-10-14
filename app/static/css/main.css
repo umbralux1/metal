@@ -87,19 +87,38 @@ p { margin: 0 0 12px; }
 .phone { font-size: 19px; font-weight: 700; text-decoration: none; letter-spacing: -0.01em; }
 .hours { font-size: 13px; color: var(--muted); }
 
-.cat-nav { border-top: 1px solid var(--line-soft); }
-.cat-nav-row { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
-.cat-nav-row::-webkit-scrollbar { display: none; }
-.cat-nav a {
-  display: flex; align-items: center; gap: 8px; padding: 12px 14px; white-space: nowrap;
-  text-decoration: none; font-size: 15px; font-weight: 500; color: var(--ink);
-  border-bottom: 2px solid transparent; margin-bottom: -1px;
+/* Кнопка «Каталог» и выпадающее меню */
+.header-main { position: relative; }
+.catalog-dd { flex: none; }
+.catalog-btn {
+  list-style: none; display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 18px;
+  border-radius: var(--radius-m); background: var(--ink); color: #fff; font-weight: 600; cursor: pointer; user-select: none;
 }
-.cat-nav a:hover { color: var(--accent); }
-.cat-nav a[aria-current="page"] { border-bottom-color: var(--accent); color: var(--accent); }
-.cat-nav .icon { width: 22px; height: 22px; color: var(--muted); }
-.cat-nav a:hover .icon, .cat-nav a[aria-current="page"] .icon { color: currentColor; }
-.cat-nav-all { margin-left: auto; color: var(--muted) !important; }
+.catalog-btn::-webkit-details-marker { display: none; }
+.catalog-btn:hover { background: #2a3843; }
+.catalog-btn svg { width: 20px; height: 20px; }
+.catalog-btn .i-close, .catalog-dd[open] .catalog-btn .i-open { display: none; }
+.catalog-dd[open] .catalog-btn .i-close { display: inline; }
+.catalog-panel {
+  position: absolute; z-index: 30; top: calc(100% - 6px); left: 20px; width: 400px; max-height: calc(100vh - 110px); overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius-m);
+  box-shadow: 0 18px 40px rgba(27, 38, 48, .14); padding: 6px;
+}
+.catalog-all { display: block; padding: 12px 14px 10px; font-weight: 600; color: var(--accent); text-decoration: none; }
+
+/* Вертикальный список разделов: в меню, на главной, в каталоге */
+.cat-menu { list-style: none; margin: 0; padding: 0; }
+.cat-menu a {
+  display: grid; grid-template-columns: 56px minmax(0, 1fr) 20px; align-items: center; gap: 16px;
+  min-height: 72px; padding: 6px 12px; border-radius: 8px; text-decoration: none; color: var(--ink);
+  font-size: 18px; font-weight: 500;
+}
+.cat-menu a:hover, .cat-menu a[aria-current="page"] { background: #f1f4f6; color: var(--ink); }
+.cat-menu a:hover .chev { color: var(--accent); transform: translateX(2px); }
+.cat-menu .icon { width: 56px; height: 56px; color: var(--ink); }
+.cat-menu .chev { width: 20px; height: 20px; color: var(--muted); transition: transform .15s; }
+.catalog-page, .home-menu { background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius-m); padding: 6px; margin-bottom: 28px; }
+.catalog-page { max-width: 720px; }
 
 /* ---------- Крошки ---------- */
 .breadcrumbs ol { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 8px; padding: 0; margin: 20px 0 0; font-size: 14px; color: var(--muted); }
@@ -108,16 +127,6 @@ p { margin: 0 0 12px; }
 .breadcrumbs a:hover { text-decoration: underline; }
 
 /* ---------- Плитки разделов и размеры ---------- */
-.tiles { list-style: none; padding: 0; margin: 0 0 28px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
-.tiles a {
-  display: flex; align-items: center; gap: 14px; padding: 16px 18px; min-height: 64px;
-  background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius-m);
-  text-decoration: none; font-weight: 600;
-}
-.tiles a:hover { border-color: var(--accent); color: var(--ink); }
-.tiles .icon { width: 30px; height: 30px; color: var(--accent); flex: none; }
-.tiles-lg a { min-height: 88px; font-size: 17px; }
-.tiles-lg .icon { width: 40px; height: 40px; }
 
 .sizes { margin: 0 0 24px; }
 .sizes h2 { font-size: 15px; font-weight: 600; color: var(--muted); margin-bottom: 10px; }
@@ -136,7 +145,7 @@ p { margin: 0 0 12px; }
 .products tbody tr:hover { background: #f8fafb; }
 .products .num { text-align: right; }
 .p-name a { display: flex; align-items: center; gap: 12px; font-weight: 600; text-decoration: none; }
-.p-name .icon { width: 26px; height: 26px; color: var(--muted); flex: none; }
+.p-name .icon { width: 34px; height: 34px; color: var(--muted); flex: none; }
 .p-name a:hover .icon { color: var(--accent); }
 .p-price { white-space: nowrap; }
 .p-price strong { font-size: 17px; }
@@ -253,12 +262,16 @@ p { margin: 0 0 12px; }
 .lead-done p { margin: 4px 0; }
 
 /* ---------- Главная ---------- */
-.hero { padding: 40px 0 24px; display: grid; grid-template-columns: minmax(0, 1fr) 440px; gap: 40px; align-items: center; }
-.hero-art { border: 1px solid var(--line-soft); border-radius: 14px; overflow: hidden; background-color: var(--surface); background-image: linear-gradient(#e6ebee 1px, transparent 1px), linear-gradient(90deg, #e6ebee 1px, transparent 1px); background-size: 16px 16px; }
-.hero-art svg { width: 100%; height: auto; }
-.hero-art .dim { font: 600 15px var(--font); fill: var(--accent); }
-.hero h1 { font-size: 44px; max-width: 760px; margin-bottom: 14px; letter-spacing: -0.025em; }
-.hero .lead { margin-bottom: 24px; }
+.home-top {
+  display: grid; grid-template-columns: 380px minmax(0, 1fr); grid-template-areas: "menu title" "menu intro";
+  grid-template-rows: auto 1fr; gap: 0 40px; padding-top: 28px; align-items: start;
+}
+.home-title { grid-area: title; font-size: 40px; letter-spacing: -0.025em; margin: 18px 0 12px; max-width: 720px; }
+.home-menu { grid-area: menu; margin: 0; }
+.home-intro { grid-area: intro; }
+.home-intro .lead { margin-bottom: 24px; }
+.home-intro .promises { margin-top: 32px; }
+.chips-title { font-size: 15px; font-weight: 600; color: var(--muted); margin: 8px 0 10px; }
 .search-lg { max-width: 720px; margin-bottom: 18px; }
 .search-lg input { font-size: 18px; padding: 16px 120px 16px 18px; background: var(--surface); }
 .search-lg button { width: auto; padding: 0 22px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; }
@@ -285,12 +298,20 @@ p { margin: 0 0 12px; }
 .mobile-bar { display: none; }
 
 @media (max-width: 960px) {
-  .hero { grid-template-columns: 1fr; }
-  .hero-art { display: none; }
+  /* Телефон и планшет: заголовок, сразу под ним весь каталог списком, потом остальное */
+  .home-top { grid-template-columns: 1fr; grid-template-areas: "title" "menu" "intro"; padding-top: 16px; }
+  .home-title { font-size: 26px; margin: 4px 0 14px; }
+  .home-menu { margin-bottom: 24px; }
+  .home-intro .search-lg { display: none; }
+  .catalog-btn { min-height: 44px; padding: 0 14px; }
+  .catalog-panel { left: 12px; right: 12px; width: auto; top: 100%; max-height: calc(100vh - 200px); }
   .product-grid { grid-template-columns: 1fr; grid-template-areas: "drawing" "buy" "details"; gap: 20px; }
   .buy { position: static; }
-  .header-main { flex-wrap: wrap; gap: 12px 20px; padding: 12px 20px; }
-  .search { order: 3; flex-basis: 100%; max-width: none; }
+  /* Шапка в две строки: логотип и телефон, ниже — «Каталог» и поиск */
+  .header-main { flex-wrap: wrap; gap: 0 10px; padding: 12px 20px; }
+  .header-main::after { content: ""; order: 3; flex-basis: 100%; height: 0; }
+  .catalog-dd { order: 4; margin-top: 10px; }
+  .search { order: 5; flex: 1 1 0; min-width: 0; max-width: none; margin-top: 10px; }
   .footer-grid { grid-template-columns: 1fr 1fr; }
   .footer-about { grid-column: 1 / -1; }
   .contacts { grid-template-columns: 1fr; }
@@ -305,14 +326,12 @@ p { margin: 0 0 12px; }
   .phone { font-size: 16px; }
   .hours { display: none; }
   h1 { font-size: 26px; }
-  .hero { padding-top: 24px; }
-  .hero h1 { font-size: 30px; }
+  .cat-menu a { grid-template-columns: 48px minmax(0, 1fr) 18px; gap: 14px; min-height: 64px; padding: 6px 8px; font-size: 17px; }
+  .cat-menu .icon { width: 48px; height: 48px; }
+  .catalog-btn span { display: none; }
   .lead { font-size: 17px; }
   .search-lg input { padding-right: 16px; }
   .search-lg button { display: none; }
-  .tiles { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .tiles a { padding: 12px; gap: 10px; font-size: 15px; min-height: 64px; }
-  .tiles-lg .icon { width: 30px; height: 30px; }
   .promises ul { grid-template-columns: 1fr; }
   .buy-card { padding: 18px; }
   .price-main { font-size: 30px; }

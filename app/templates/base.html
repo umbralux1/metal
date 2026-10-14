@@ -32,6 +32,18 @@
         </span>
         <span class="brand-name">{{ settings.site_name }}</span>
       </a>
+      {% if nav %}
+      <details class="catalog-dd">
+        <summary class="catalog-btn">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path class="i-open" d="M4 7h16M4 12h16M4 17h16"/><path class="i-close" d="M6 6l12 12M18 6L6 18"/></svg>
+          <span>Каталог</span>
+        </summary>
+        <nav class="catalog-panel" aria-label="Каталог">
+          {% with items = nav %}{% include "catalog/_menu.html" %}{% endwith %}
+          <a class="catalog-all" href="/catalog/">Весь каталог</a>
+        </nav>
+      </details>
+      {% endif %}
       <form class="search" action="/search/" method="get" role="search">
         <input type="search" name="q" value="{{ q | default('') }}" placeholder="Например, труба 40х20" aria-label="Поиск по каталогу" autocomplete="off">
         <button type="submit" aria-label="Найти">
@@ -43,16 +55,6 @@
         <span class="hours">{{ settings.work_hours }}</span>
       </div>
     </div>
-    {% if nav %}
-    <nav class="cat-nav" aria-label="Разделы каталога">
-      <div class="container cat-nav-row">
-        {% for c in nav %}
-        <a href="{{ c.url }}" {% if request.url.path.startswith(c.url) %}aria-current="page"{% endif %}>{{ category_icon(c.slug) }}<span>{{ c.name }}</span></a>
-        {% endfor %}
-        <a href="/catalog/" class="cat-nav-all" {% if request.url.path == '/catalog/' %}aria-current="page"{% endif %}>Весь каталог</a>
-      </div>
-    </nav>
-    {% endif %}
   </header>
 
   <main id="main" class="container">
@@ -111,6 +113,15 @@
       Каталог
     </a>
   </nav>
+  <script>
+    // Меню «Каталог»: закрыть по клику мимо и по Esc
+    (function () {
+      var dd = document.querySelector(".catalog-dd");
+      if (!dd) return;
+      document.addEventListener("click", function (e) { if (dd.open && !dd.contains(e.target)) dd.open = false; });
+      document.addEventListener("keydown", function (e) { if (e.key === "Escape" && dd.open) { dd.open = false; dd.querySelector("summary").focus(); } });
+    })();
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

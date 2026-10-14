@@ -178,6 +178,8 @@ class FilterLanding(TimestampMixin, SeoMixin, Base):
     filters: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     is_indexable: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     sort: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # Создана генератором (app/catalog/landings.py) и обновляется им. Правка в админке делает её ручной.
+    is_generated: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     category: Mapped[Category] = relationship(lazy="joined")
 

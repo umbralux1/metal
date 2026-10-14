@@ -51,6 +51,8 @@ class Settings(BaseSettings):
     allow_indexing: bool = True
     # true — при запуске на хостинге загрузить демо-товары в пустую базу (python main.py)
     seed_demo: bool = False
+    # true — при запуске на хостинге обновить посадочные «по размеру» из каталога (app/catalog/landings.py)
+    auto_landings: bool = True
 
     page_size: int = 24
 

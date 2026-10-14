@@ -3,7 +3,6 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.catalog import repository as repo
 from app.catalog.models import FilterLanding
 from app.core.config import settings
 from app.core.db import get_session
@@ -33,7 +32,6 @@ async def home(request: Request, session: AsyncSession = Depends(get_session)):
         "home.html",
         {
             "meta": meta,
-            "categories": await repo.top_categories(session),
             "landings": list(landings),
             "jsonld": [jsonld.to_script(jsonld.organization())],
         },

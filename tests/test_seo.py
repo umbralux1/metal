@@ -50,7 +50,7 @@ async def test_landing_by_two_dimensions(client):
 
 
 async def test_non_indexable_landing(client):
-    r = await client.get("/catalog/armatura/8-mm/")
+    r = await client.get("/catalog/armatura/11-7-m/")
     assert r.status_code == 200
     assert PageInfo(r.text).robots == "noindex, follow"
 
@@ -115,7 +115,7 @@ async def _sitemap_paths(client) -> list[str]:
 async def test_sitemap_contents(client):
     paths = await _sitemap_paths(client)
     assert "/catalog/armatura/12-mm/" in paths
-    assert "/catalog/armatura/8-mm/" not in paths  # закрытая комбинация
+    assert "/catalog/armatura/11-7-m/" not in paths  # закрытая комбинация
     assert len(paths) == len(set(paths))
 
 
@@ -148,10 +148,31 @@ async def test_search_nothing_found(client):
 
 
 async def test_header_nav_lists_top_categories(client):
+    """Меню «Каталог» в шапке — вертикальный список всех корневых разделов со значками."""
     r = await client.get("/catalog/armatura/")
-    nav = r.text.split('class="cat-nav"', 1)[1].split("</nav>", 1)[0]
+    nav = r.text.split('class="catalog-panel"', 1)[1].split("</nav>", 1)[0]
     assert 'href="/catalog/armatura/" aria-current="page"' in nav
     assert 'href="/catalog/truba-profilnaya/"' in nav
+    assert nav.count('class="icon iso"') >= 2 and 'class="chev"' in nav
+    # Горизонтальной полосы разделов больше нет
+    assert 'class="cat-nav"' not in r.text
+
+
+async def test_home_shows_full_catalog_as_list(client):
+    """На главной весь каталог виден сразу: список разделов идёт сразу после H1."""
+    html = (await client.get("/")).text
+    menu = html.split('class="home-menu"', 1)[1].split("</nav>", 1)[0]
+    assert 'href="/catalog/armatura/"' in menu and 'href="/catalog/truba-profilnaya/"' in menu
+    assert html.index('class="home-title"') < html.index('class="home-menu"') < html.index('class="home-intro"')
+
+
+def test_iso_icons_cover_brief_categories():
+    from app.catalog.iso_icons import CATEGORY_SHAPES, SHAPES, iso_icon
+
+    assert {shape for _, shape in CATEGORY_SHAPES} <= set(SHAPES)
+    svg = iso_icon("armatura")
+    assert svg.startswith('<svg class="icon iso"') and "vector-effect" in svg
+    assert iso_icon("neizvestnyy-razdel") == iso_icon("eshche-odin")  # запасной значок
 
 
 async def test_product_page_has_section_drawing(client):

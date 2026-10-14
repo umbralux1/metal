@@ -220,3 +220,33 @@ async def test_lead_status_change(admin):
     assert r.status_code == 302, r.text[:500]
     lead = await get_one(Lead, id=lead_id)
     assert (lead.status, lead.comment) == ("in_progress", "перезвонил")
+
+
+async def test_generate_landings_action_and_manual_edit(admin):
+    r = await admin.get("/admin/filter-landing/action/generate?pks=")
+    assert r.status_code == 302 and r.headers["location"].endswith("/admin/filter-landing/list")
+    landing = await get_one(FilterLanding, path="truba-profilnaya/kvadratnaya/40x40")
+    assert landing.is_generated
+
+    # Поправили посадочную руками — она становится ручной, генератор её больше не перезапишет
+    r = await admin.post(
+        f"/admin/filter-landing/edit/{landing.id}",
+        data={
+            "name": landing.name,
+            "slug": "40x40",
+            "category": str(landing.category_id),
+            "filters": '{"width_mm": 40, "height_mm": 40}',
+            "is_indexable": "y",
+            "sort": str(landing.sort),
+            "h1": "Труба 40х40 — своя H1",
+            "title": "Своя труба 40х40 {price}",
+        },
+    )
+    assert r.status_code == 302, r.text[:500]
+    assert not (await get_one(FilterLanding, id=landing.id)).is_generated
+    await admin.get("/admin/filter-landing/action/generate?pks=")
+    landing = await get_one(FilterLanding, id=landing.id)
+    assert landing.h1 == "Труба 40х40 — своя H1" and not landing.is_generated
+    async with new_client() as site:
+        html = (await site.get("/catalog/truba-profilnaya/kvadratnaya/40x40/")).text
+    assert "<title>Своя труба 40х40 от 195\u00a0₽</title>" in html

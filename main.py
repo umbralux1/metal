@@ -33,6 +33,10 @@ def prepare_database() -> None:
         from app.catalog.seed import main as seed
 
         asyncio.run(seed())
+    if settings.auto_landings:
+        from app.catalog.landings import main as landings
+
+        asyncio.run(landings())
 
 
 if __name__ == "__main__":

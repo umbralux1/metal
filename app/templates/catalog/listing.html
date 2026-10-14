@@ -3,9 +3,9 @@
 <h1>{{ meta.h1 }}</h1>
 
 {% if children %}
-<ul class="tiles">
-  {% for c in children %}<li><a href="{{ c.url }}">{{ category_icon(c.path.split('/')[0]) }}<span>{{ c.name }}</span></a></li>{% endfor %}
-</ul>
+<nav class="catalog-page" aria-label="Подразделы">
+  {% with items = children %}{% include "catalog/_menu.html" %}{% endwith %}
+</nav>
 {% endif %}
 
 {% if landings %}

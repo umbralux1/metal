@@ -1,35 +1,34 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="hero">
-  <div class="hero-text">
-  <h1>{{ meta.h1 }}</h1>
-  <p class="lead">Продаём от одного прутка, режем в размер и привозим по {{ settings.city_prepositional }} и области.</p>
-  <form class="search search-lg" action="/search/" method="get" role="search">
-    <input type="search" name="q" placeholder="Что ищете? Например, арматура 12 или труба 40х20" aria-label="Поиск по каталогу" autocomplete="off">
-    <button type="submit">Найти</button>
-  </form>
-  {% if landings %}
-  <ul class="chips">
-    {% for l in landings %}<li><a href="{{ l.url }}">{{ l.name }}</a></li>{% endfor %}
-  </ul>
+<div class="home-top">
+  <h1 class="home-title">{{ meta.h1 }}</h1>
+  {% if request.state.nav %}
+  <nav class="home-menu" aria-label="Каталог">
+    {% with items = request.state.nav %}{% include "catalog/_menu.html" %}{% endwith %}
+  </nav>
   {% endif %}
+  <div class="home-intro">
+    <p class="lead">Продаём от одного прутка, режем в размер и привозим по {{ settings.city_prepositional }} и области.</p>
+    <form class="search search-lg" action="/search/" method="get" role="search">
+      <input type="search" name="q" placeholder="Что ищете? Например, арматура 12 или труба 40х20" aria-label="Поиск по каталогу" autocomplete="off">
+      <button type="submit">Найти</button>
+    </form>
+    {% if landings %}
+    <h2 class="chips-title">Популярные размеры</h2>
+    <ul class="chips">
+      {% for l in landings %}<li><a href="{{ l.url }}">{{ l.name }}</a></li>{% endfor %}
+    </ul>
+    {% endif %}
+    <section class="promises">
+      <h2 class="visually-hidden">Как мы работаем</h2>
+      <ul>
+        <li><strong>Доставка на объект</strong><span>По {{ settings.city_prepositional }} и области. Стоимость менеджер считает по адресу.</span></li>
+        <li><strong>Резка в размер</strong><span>{{ settings.cut_price_kop | rub }} за рез. Обрезки отдаём вместе с заказом.</span></li>
+        <li><strong>От одного прутка</strong><span>Без минимальной партии, цена за метр и за тонну.</span></li>
+      </ul>
+    </section>
   </div>
-  <div class="hero-art" aria-hidden="true">{{ hero_svg() }}</div>
-</section>
+</div>
 
-<section class="home-section">
-  <h2>Каталог</h2>
-  <ul class="tiles tiles-lg">
-    {% for c in categories %}<li><a href="{{ c.url }}">{{ category_icon(c.slug) }}<span>{{ c.name }}</span></a></li>{% endfor %}
-  </ul>
-</section>
 
-<section class="home-section promises">
-  <h2 class="visually-hidden">Как мы работаем</h2>
-  <ul>
-    <li><strong>Доставка на объект</strong><span>По {{ settings.city_prepositional }} и области. Стоимость менеджер считает по адресу.</span></li>
-    <li><strong>Резка в размер</strong><span>{{ settings.cut_price_kop | rub }} за рез. Обрезки отдаём вместе с заказом.</span></li>
-    <li><strong>От одного прутка</strong><span>Без минимальной партии, цена за метр и за тонну.</span></li>
-  </ul>
-</section>
 {% endblock %}
