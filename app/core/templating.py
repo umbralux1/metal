@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi.templating import Jinja2Templates
 
 from app.core.config import settings
+from app.core.static import static_url
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 
@@ -47,5 +48,6 @@ def _register_drawings() -> None:
 
 
 templates.env.globals["phone_href"] = _phone_href
+templates.env.globals["static_url"] = static_url
 templates.env.globals["current_year"] = lambda: date.today().year
 _register_drawings()

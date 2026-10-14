@@ -90,3 +90,50 @@ def test_render_env_file_values_and_dashboard_override(monkeypatch):
     monkeypatch.setenv("SEED_DEMO", "false")
     s = Settings(_env_file=RENDER_ENV_FILE)
     assert s.admin_password == "from-dashboard" and s.seed_demo is False
+
+
+async def test_static_files_are_versioned_and_cached(client):
+    """Стили и скрипты подключаются с отпечатком версии: после обновления браузер берёт новый файл сам."""
+    import re
+
+    html = (await client.get("/")).text
+    css = re.search(r'href="(/static/css/main\.css\?v=[0-9a-f]{10})"', html)
+    assert css, "main.css без версии — после обновления браузер покажет старые стили"
+    r = await client.get(css.group(1))
+    assert r.status_code == 200 and r.headers["cache-control"] == "public, max-age=31536000, immutable"
+    # Без версии — браузер каждый раз сверяется с сервером
+    r = await client.get("/static/fonts/golos-text.woff")
+    assert r.headers["cache-control"] == "no-cache"
+
+
+def test_static_hash_changes_with_content(tmp_path, monkeypatch):
+    from app.core import static
+
+    monkeypatch.setattr(static, "STATIC_DIR", tmp_path)
+    static._hashes.clear()
+    f = tmp_path / "a.css"
+    f.write_text("body{color:red}")
+    first = static.static_url("a.css")
+    f.write_text("body{color:blue}")
+    import os
+
+    os.utime(f, (f.stat().st_atime, f.stat().st_mtime + 5))
+    assert static.static_url("a.css") != first
+    assert static.static_url("missing.css") == "/static/missing.css"
+    static._hashes.clear()
+
+
+def test_templates_link_static_only_through_static_url():
+    """Стили, скрипты и картинки подключаются только через static_url() — иначе после обновления
+    браузер покажет старую версию из кэша. Исключение — шрифты: их адрес должен совпадать с url() в CSS."""
+    import re
+    from pathlib import Path
+
+    templates = Path(__file__).resolve().parent.parent / "app" / "templates"
+    bad = []
+    for file in templates.rglob("*.html"):
+        for n, line in enumerate(file.read_text(encoding="utf-8").splitlines(), start=1):
+            for link in re.findall(r"""["'](/static/[^"'?]+)""", line):
+                if not link.startswith("/static/fonts/"):
+                    bad.append(f"{file.relative_to(templates)}:{n} {link}")
+    assert not bad, "Подключите через {{ static_url('...') }}: " + ", ".join(bad)

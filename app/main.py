@@ -3,7 +3,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.admin.views import setup_admin
@@ -12,7 +11,8 @@ from app.catalog.router import router as catalog_router
 from app.core.config import settings
 from app.core.db import SessionLocal, engine
 from app.core.nav import NavMiddleware
-from app.core.templating import TEMPLATES_DIR, templates
+from app.core.static import STATIC_DIR, VersionedStaticFiles
+from app.core.templating import templates
 from app.leads.router import router as leads_router
 from app.pages.router import router as pages_router
 from app.seo.meta import PageMeta, absolute
@@ -40,7 +40,7 @@ def create_app() -> FastAPI:
     if not settings.allow_indexing:
         app.add_middleware(NoIndexMiddleware)
     app.add_middleware(HeadAsGetMiddleware)
-    app.mount("/static", StaticFiles(directory=str(TEMPLATES_DIR.parent / "static")), name="static")
+    app.mount("/static", VersionedStaticFiles(directory=str(STATIC_DIR)), name="static")
 
     app.include_router(pages_router)
     app.include_router(catalog_router)
