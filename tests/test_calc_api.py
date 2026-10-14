@@ -124,3 +124,12 @@ async def test_lead_honeypot_is_not_saved(client):
 )
 def test_normalize_phone(raw, expected):
     assert normalize_phone(raw) == expected
+
+
+async def test_calc_form_has_meters_only(client):
+    """В форме нет переключателя «Штуки / Метры / Кг»: количество — в метрах, по умолчанию один пруток."""
+    html = (await client.get(PRODUCT_URL)).text
+    form = html.split('class="calc"', 1)[1].split("</form>", 1)[0]
+    assert 'type="radio"' not in form and "Кг" not in form and "Штуки" not in form
+    assert '<input type="hidden" name="unit" value="m">' in form
+    assert "Количество, м" in form and 'placeholder="11,7"' in form

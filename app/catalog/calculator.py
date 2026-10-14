@@ -107,10 +107,15 @@ def parse_input(params: Mapping[str, str], product: Product) -> CalcInput:
 
 
 def default_unit(product: Product) -> str:
-    return "pcs" if product.length_m or product.base_unit == Unit.PIECE else "m"
+    """В форме количество вводится в метрах; в штуках — только у товаров, которые продаются штуками.
+    Штуки и килограммы по-прежнему принимаются от API и старых ссылок."""
+    return "pcs" if product.base_unit == Unit.PIECE else "m"
 
 
 def default_input(product: Product) -> CalcInput:
+    """По умолчанию — один пруток / одна труба: длина прутка в метрах (или 1 м, 1 шт.)."""
+    if default_unit(product) == "m" and product.length_m:
+        return CalcInput(unit="m", quantity=Decimal(product.length_m).normalize())
     return CalcInput(unit=default_unit(product), quantity=Decimal(1))
 
 

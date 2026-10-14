@@ -54,26 +54,14 @@
         </div>
 
         <h2 id="calc-title">Расчёт заказа</h2>
-        {% set unit = params.get('unit') or ('pcs' if product.length_m else 'm') %}
+        {% set unit = 'pcs' if product.base_unit.value == 'pcs' else 'm' %}
         {% set cutting = params.get('cut') in ['1', 'on', 'true'] %}
         <form class="calc" method="get" action="{{ product.url }}#calc" data-calc-url="/api/calc/{{ product.id }}/">
-          <div class="qty-field">
-            <div class="unit-switch" role="radiogroup" aria-label="Единица">
-              {% if product.length_m or product.base_unit.value == 'pcs' %}
-              <label><input type="radio" name="unit" value="pcs" {{ 'checked' if unit == 'pcs' }}><span>Штуки</span></label>
-              {% endif %}
-              {% if product.base_unit.value != 'pcs' %}
-              <label><input type="radio" name="unit" value="m" {{ 'checked' if unit == 'm' }}><span>Метры</span></label>
-              {% endif %}
-              {% if product.weight_per_m_kg %}
-              <label><input type="radio" name="unit" value="kg" {{ 'checked' if unit == 'kg' }}><span>Кг</span></label>
-              {% endif %}
-            </div>
-            <label class="field">
-              <span>Количество</span>
-              <input name="qty" inputmode="decimal" autocomplete="off" value="{{ params.get('qty', '') }}" placeholder="1">
-            </label>
-          </div>
+          <input type="hidden" name="unit" value="{{ unit }}">
+          <label class="field qty-field">
+            <span>{{ "Количество, шт." if unit == 'pcs' else "Количество, м" }}</span>
+            <input name="qty" inputmode="decimal" autocomplete="off" value="{{ params.get('qty', '') }}" placeholder="{{ product.length_m | num if product.length_m and unit == 'm' else '1' }}">
+          </label>
 
           {% if product.length_m %}
           <label class="check"><input type="checkbox" name="cut" value="1" {{ 'checked' if cutting }}> Резать в размер, {{ settings.cut_price_kop | rub }} за рез</label>
