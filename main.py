@@ -21,27 +21,10 @@ def server_options(env: dict[str, str]) -> dict:
     }
 
 
-def prepare_database() -> None:
-    """Перед стартом сервера: схема БД, демо-данные (по желанию), посадочные и адреса товаров."""
-    import asyncio
-
-    from alembic.config import main as alembic
-
-    from app.core.config import settings
-
-    alembic(argv=["upgrade", "head"])
-    if settings.seed_demo:
-        from app.catalog.seed import main as seed
-
-        asyncio.run(seed())
-    if settings.auto_landings:
-        from app.catalog.landings import main as landings
-
-        asyncio.run(landings())
-
-
 if __name__ == "__main__":
     import uvicorn
+
+    from app.core.startup import prepare_database
 
     options = server_options(dict(os.environ))
     # Один раз в основном процессе: при автоперезагрузке код перезапускается без повторных миграций

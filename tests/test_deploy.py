@@ -137,3 +137,42 @@ def test_templates_link_static_only_through_static_url():
                 if not link.startswith("/static/fonts/"):
                     bad.append(f"{file.relative_to(templates)}:{n} {link}")
     assert not bad, "Подключите через {{ static_url('...') }}: " + ", ".join(bad)
+
+
+def test_migration_retries_lock_timeout_then_succeeds(monkeypatch):
+    """Миграция не висит на занятой таблице: ошибка ожидания блокировки → повтор → успех."""
+    from sqlalchemy.exc import OperationalError
+
+    from app.core import startup
+
+    calls = []
+
+    def fake_upgrade(config, revision):
+        calls.append(revision)
+        if len(calls) < 3:
+            raise OperationalError("ALTER TABLE", {}, Exception("canceling statement due to lock timeout"))
+
+    monkeypatch.setattr(startup.command, "upgrade", fake_upgrade)
+    startup.migrate(attempts=5, pause=0)
+    assert calls == ["head", "head", "head"]
+
+
+def test_migration_gives_clear_error_after_attempts(monkeypatch):
+    import pytest
+    from sqlalchemy.exc import OperationalError
+
+    from app.core import startup
+
+    def always_fails(config, revision):
+        raise OperationalError("connect", {}, Exception("connection timeout expired"))
+
+    monkeypatch.setattr(startup.command, "upgrade", always_fails)
+    with pytest.raises(RuntimeError, match="connection timeout expired"):
+        startup.migrate(attempts=2, pause=0)
+
+
+def test_db_connections_cannot_hold_locks_forever():
+    from app.core.db import CONNECT_ARGS
+
+    assert CONNECT_ARGS["connect_timeout"] <= 15
+    assert "idle_in_transaction_session_timeout" in CONNECT_ARGS["options"]
