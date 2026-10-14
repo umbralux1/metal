@@ -41,7 +41,7 @@ def category_meta(request: Request, category: Category, min_kop: int | None) -> 
         title=category.title or f"{category.name} купить в {city_prep()} — цена за метр и тонну | {s.site_name}",
         description=category.description
         or f"{category.name} в наличии на складе{_from_price(min_kop)}. Доставка по {city_dat()} и области "
-        f"в день заказа, резка в размер, продажа от 1 штуки. ☎ {s.phone}",
+        f"резка в размер, продажа от 1 штуки. ☎ {s.phone}",
         h1=category.h1 or category.name,
         canonical=absolute(category.url),
         robots=robots_for(request),

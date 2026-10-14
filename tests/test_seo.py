@@ -11,6 +11,11 @@ from tests.helpers import PageInfo
 SITE = settings.site_url
 
 
+def products_table(html: str) -> str:
+    """HTML таблицы товаров — чтобы проверять, что попало именно в список, а не в меню или ссылки."""
+    return html.split('class="products"', 1)[1].split("</table>", 1)[0]
+
+
 async def test_category_page(client):
     r = await client.get("/catalog/armatura/")
     assert r.status_code == 200
@@ -31,16 +36,17 @@ async def test_landing_filters_products_and_builds_title(client):
     page = PageInfo(r.text)
     assert page.h1 == ["Арматура 12 мм"]
     assert "от 43,25 ₽" in page.title
-    assert "Арматура 12 мм А500С" in r.text and "Арматура 12 мм А1" in r.text
-    assert "Арматура 10 мм" not in r.text.split("<h1>", 1)[1].split("По размеру", 1)[0]
-    assert "А500С</a>" in r.text
+    table = products_table(r.text)
+    assert "armatura-12-mm-a500s" in table and "armatura-12-mm-a1" in table
+    assert "armatura-10-mm" not in table
 
 
 async def test_landing_by_two_dimensions(client):
     r = await client.get("/catalog/truba-profilnaya/kvadratnaya/40x40/")
     assert r.status_code == 200
-    assert "40х40х2" in r.text and "40х40х3" in r.text
-    assert "20х20х2</a>" not in r.text
+    table = products_table(r.text)
+    assert "40x40x2" in table and "40x40x3" in table
+    assert "20x20x2" not in table and "40x20x2" not in table
 
 
 async def test_non_indexable_landing(client):
@@ -124,3 +130,31 @@ async def test_every_sitemap_url_is_clean(client):
         assert page.robots is None, path
         assert page.title and page.description, path
         assert re.search(r"<html lang=\"ru\">", r.text), path
+
+
+async def test_search(client):
+    r = await client.get("/search/", params={"q": "ТРУБА 40х40"})
+    assert r.status_code == 200
+    page = PageInfo(r.text)
+    assert page.robots == "noindex, follow"
+    table = products_table(r.text)
+    assert "40x40x2" in table and "40x40x3" in table and "20x20x2" not in table
+
+
+async def test_search_nothing_found(client):
+    r = await client.get("/search/", params={"q": "титан"})
+    assert r.status_code == 200
+    assert "ничего не нашли" in r.text
+
+
+async def test_header_nav_lists_top_categories(client):
+    r = await client.get("/catalog/armatura/")
+    nav = r.text.split('class="cat-nav"', 1)[1].split("</nav>", 1)[0]
+    assert 'href="/catalog/armatura/" aria-current="page"' in nav
+    assert 'href="/catalog/truba-profilnaya/"' in nav
+
+
+async def test_product_page_has_section_drawing(client):
+    r = await client.get("/catalog/truba-profilnaya/kvadratnaya/truba-profilnaya-40x40x2/")
+    assert 'class="section-drawing"' in r.text
+    assert "t = 2" in r.text

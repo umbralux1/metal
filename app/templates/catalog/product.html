@@ -1,28 +1,95 @@
 {% extends "base.html" %}
 {% block content %}
 <article class="product">
-  <h1>{{ meta.h1 }}</h1>
-  <p class="stock {{ 'in' if product.in_stock else 'out' }}">{{ "В наличии" if product.in_stock else "Под заказ" }}</p>
+  <header class="product-head">
+    <h1>{{ meta.h1 }}</h1>
+    <ul class="facts">
+      <li class="stock {{ 'in' if product.in_stock else 'out' }}">{{ "В наличии на складе" if product.in_stock else "Под заказ" }}</li>
+      {% if product.steel_grade %}<li>{{ product.steel_grade }}</li>{% endif %}
+      {% if product.gost %}<li>{{ product.gost }}</li>{% endif %}
+    </ul>
+  </header>
 
-  <div class="prices">
-    {% for pr in product.prices %}
-      <p class="{{ 'price-main' if pr.unit == product.base_unit else 'price-alt' }}">{{ pr.amount_kop | rub }} за {{ pr.unit.label }}</p>
-    {% else %}
-      <p class="price-main">Цена по запросу</p>
-    {% endfor %}
-    <a class="btn" href="tel:{{ settings.phone | replace(' ', '') | replace('(', '') | replace(')', '') | replace('-', '') }}">Заказать по телефону</a>
+  <div class="product-grid">
+    <div class="product-drawing">
+      {% set drawing = section_svg(product) %}
+      {% if drawing %}
+      <figure class="drawing">
+        {{ drawing }}
+        <figcaption>Сечение, размеры в миллиметрах</figcaption>
+      </figure>
+      {% endif %}
+    </div>
+
+    <div class="product-details">
+      <h2>Характеристики</h2>
+      <table class="specs">
+        {% if product.size_label %}<tr><th scope="row">Размер</th><td>{{ product.size_label }}</td></tr>{% endif %}
+        {% if product.steel_grade %}<tr><th scope="row">Марка, класс</th><td>{{ product.steel_grade }}</td></tr>{% endif %}
+        {% if product.gost %}<tr><th scope="row">ГОСТ, ТУ</th><td>{{ product.gost }}</td></tr>{% endif %}
+        {% if product.length_m %}<tr><th scope="row">Длина</th><td>{{ product.length_m | num }} м</td></tr>{% endif %}
+        {% if product.weight_per_m_kg %}<tr><th scope="row">Вес 1 м</th><td>{{ product.weight_per_m_kg | num }} кг</td></tr>{% endif %}
+        {% if product.length_m and product.weight_per_m_kg %}<tr><th scope="row">Вес 1 шт.</th><td>{{ (product.length_m * product.weight_per_m_kg) | round(2) | string | replace('.', ',') }} кг</td></tr>{% endif %}
+        {% if product.sku %}<tr><th scope="row">Артикул</th><td>{{ product.sku }}</td></tr>{% endif %}
+      </table>
+
+      {% if product.seo_text %}<section class="seo-text">{{ product.seo_text | safe }}</section>{% endif %}
+    </div>
+
+    <aside class="buy" id="calc" aria-labelledby="calc-title">
+      <div class="buy-card">
+        <div class="price-block">
+          {% set bp = product.base_price %}
+          {% if bp %}
+          <p class="price-main">{{ bp.amount_kop | rub }}<span> за {{ bp.unit.label }}</span></p>
+          {% for pr in product.prices if pr.unit != product.base_unit %}
+          <p class="price-alt">{{ pr.amount_kop | rub }} за {{ pr.unit.label }}{% if pr.unit.value == 't' %}, от 1 т{% endif %}</p>
+          {% endfor %}
+          {% else %}
+          <p class="price-main">Цена по запросу</p>
+          {% endif %}
+        </div>
+
+        <h2 id="calc-title">Расчёт заказа</h2>
+        {% set unit = params.get('unit') or ('pcs' if product.length_m else 'm') %}
+        {% set cutting = params.get('cut') in ['1', 'on', 'true'] %}
+        <form class="calc" method="get" action="{{ product.url }}#calc" data-calc-url="/api/calc/{{ product.id }}/">
+          <div class="qty-field">
+            <div class="unit-switch" role="radiogroup" aria-label="Единица">
+              {% if product.length_m or product.base_unit.value == 'pcs' %}
+              <label><input type="radio" name="unit" value="pcs" {{ 'checked' if unit == 'pcs' }}><span>Штуки</span></label>
+              {% endif %}
+              {% if product.base_unit.value != 'pcs' %}
+              <label><input type="radio" name="unit" value="m" {{ 'checked' if unit == 'm' }}><span>Метры</span></label>
+              {% endif %}
+              {% if product.weight_per_m_kg %}
+              <label><input type="radio" name="unit" value="kg" {{ 'checked' if unit == 'kg' }}><span>Кг</span></label>
+              {% endif %}
+            </div>
+            <label class="field">
+              <span>Количество</span>
+              <input name="qty" inputmode="decimal" autocomplete="off" value="{{ params.get('qty', '') }}" placeholder="1">
+            </label>
+          </div>
+
+          {% if product.length_m %}
+          <label class="check"><input type="checkbox" name="cut" value="1" {{ 'checked' if cutting }}> Резать в размер, {{ settings.cut_price_kop | rub }} за рез</label>
+          <div class="cut-fields">
+            <label class="field"><span>Длина отрезка, м</span>
+              <input name="cut_len" inputmode="decimal" autocomplete="off" value="{{ params.get('cut_len', '') }}" placeholder="3">
+            </label>
+            <label class="field"><span>Отрезков, шт.</span>
+              <input name="cut_count" inputmode="numeric" autocomplete="off" value="{{ params.get('cut_count', '') }}" placeholder="10">
+            </label>
+          </div>
+          {% endif %}
+          <button class="btn btn-quiet" type="submit" data-calc-submit>Рассчитать</button>
+        </form>
+
+        <div id="calc-result" aria-live="polite">{% include "catalog/_calc_result.html" %}</div>
+      </div>
+    </aside>
   </div>
-
-  <h2>Характеристики</h2>
-  <table class="specs">
-    {% if product.size_label %}<tr><th>Размер</th><td>{{ product.size_label }}</td></tr>{% endif %}
-    {% if product.steel_grade %}<tr><th>Марка / класс</th><td>{{ product.steel_grade }}</td></tr>{% endif %}
-    {% if product.gost %}<tr><th>ГОСТ / ТУ</th><td>{{ product.gost }}</td></tr>{% endif %}
-    {% if product.length_m %}<tr><th>Длина, м</th><td>{{ product.length_m | num }}</td></tr>{% endif %}
-    {% if product.weight_per_m_kg %}<tr><th>Вес 1 м, кг</th><td>{{ product.weight_per_m_kg | num }}</td></tr>{% endif %}
-    {% if product.sku %}<tr><th>Артикул</th><td>{{ product.sku }}</td></tr>{% endif %}
-  </table>
-
-  {% if product.seo_text %}<section class="seo-text">{{ product.seo_text | safe }}</section>{% endif %}
 </article>
 {% endblock %}
+{% block scripts %}<script src="/static/js/calc.js" defer></script>{% endblock %}

@@ -19,7 +19,7 @@ async def home(request: Request, session: AsyncSession = Depends(get_session)):
     meta = PageMeta(
         title=f"Металлопрокат купить в {city_prep()} в розницу с доставкой | {settings.site_name}",
         description=f"Металлопрокат в розницу от 1 штуки: арматура, профильная труба, уголок, лист, профнастил. "
-        f"Доставка по {city_prep()} и области в день заказа, резка в размер. ☎ {settings.phone}",
+        f"Доставка по {city_prep()} и области, резка в размер. ☎ {settings.phone}",
         h1=f"Металлопрокат в {city_prep()} с доставкой",
         canonical=absolute("/"),
         robots=robots_for(request),

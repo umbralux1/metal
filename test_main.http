@@ -12,6 +12,10 @@ GET http://127.0.0.1:8000/catalog/armatura/12-mm/
 GET http://127.0.0.1:8000/catalog/armatura/a500c/armatura-12-mm-a500s/
 ###
 
+# Калькулятор: 10 отрезков по 3,9 м (id товара смотрите в базе, после seed это 2)
+GET http://127.0.0.1:8000/api/calc/2/?cut=1&cut_len=3,9&cut_count=10
+###
+
 # Должен вернуть 301 на /catalog/armatura/
 GET http://127.0.0.1:8000/Catalog/Armatura
 ###

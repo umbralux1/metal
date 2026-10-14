@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ meta.h1 }}</h1>
+{% include "leads/_done.html" %}
+<p><a href="{{ product.url }}">Вернуться к товару «{{ product.name }}»</a></p>
+{% endblock %}

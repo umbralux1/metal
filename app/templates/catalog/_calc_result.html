@@ -1,0 +1,18 @@
+{% if calc_error %}
+<p class="calc-error" role="alert">{{ calc_error }}</p>
+{% elif calc %}
+<dl class="calc-summary">
+  {% if calc.pieces is not none %}<div><dt>Штук</dt><dd>{{ calc.pieces }}</dd></div>{% endif %}
+  {% if calc.meters is not none %}<div><dt>Метров</dt><dd>{{ calc.meters | num }}</dd></div>{% endif %}
+  {% if calc.weight_kg is not none %}<div><dt>Вес</dt><dd>{{ calc.weight_kg | num }} кг</dd></div>{% endif %}
+</dl>
+<table class="calc-lines">
+  <tr><th>Металл <small>по {{ calc.price_kop | rub }}/{{ calc.price_unit.label }}</small></th><td>{{ calc.material_kop | rub }}</td></tr>
+  {% if calc.cuts %}<tr><th>Резка <small>{{ calc.cuts }} рез.</small></th><td>{{ calc.cut_kop | rub }}</td></tr>{% endif %}
+  <tr><th>Доставка</th><td class="muted">рассчитает менеджер</td></tr>
+  <tr class="calc-total"><th>Итого</th><td>{{ calc.total_kop | rub }}</td></tr>
+</table>
+{% for note in calc.notes %}<p class="calc-note">{{ note }}</p>{% endfor %}
+{% set values = {} %}
+{% include "leads/_form.html" %}
+{% endif %}

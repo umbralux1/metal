@@ -1,0 +1,8 @@
+<div class="lead-done" role="status">
+  {% if lead %}
+  <p><strong>Заявка №{{ lead.id }} принята.</strong></p>
+  <p>Перезвоним в течение 15 минут в рабочее время. Если срочно — <a href="tel:{{ settings.phone | replace(' ', '') | replace('(', '') | replace(')', '') | replace('-', '') }}">{{ settings.phone }}</a>.</p>
+  {% else %}
+  <p><strong>Заявка принята.</strong></p>
+  {% endif %}
+</div>

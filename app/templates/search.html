@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ meta.h1 }}</h1>
+{% if q %}
+  {% if products.items %}
+  <p class="muted">Нашли {{ products.total }} {{ 'позицию' if products.total % 10 == 1 and products.total % 100 != 11 else ('позиции' if products.total % 10 in [2,3,4] and products.total % 100 not in [12,13,14] else 'позиций') }}.</p>
+  {% include "catalog/_products_table.html" %}
+  {% else %}
+  <p class="empty">По запросу «{{ q }}» ничего не нашли. Проверьте размер — например, «40х20» или «12 мм» — или позвоните, подберём: <a href="{{ phone_href(settings.phone) }}">{{ settings.phone }}</a></p>
+  {% endif %}
+{% else %}
+<p class="muted">Введите название или размер в поиске вверху страницы.</p>
+{% endif %}
+{% endblock %}

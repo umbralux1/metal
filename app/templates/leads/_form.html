@@ -1,0 +1,20 @@
+<form class="lead-form" method="post" action="/api/lead/" data-lead>
+  <input type="hidden" name="product_id" value="{{ product.id }}">
+  {% for key in ['unit', 'qty', 'cut', 'cut_len', 'cut_count'] %}
+    {% if params.get(key) %}<input type="hidden" name="{{ key }}" value="{{ params.get(key) }}">{% endif %}
+  {% endfor %}
+  <p class="lead-title">Оставьте телефон — уточним наличие и доставку</p>
+  {% if error %}<p class="calc-error" role="alert">{{ error }}</p>{% endif %}
+  <label class="field"><span>Телефон</span>
+    <input name="phone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="+7 916 123-45-67" value="{{ values.get('phone', '') }}">
+  </label>
+  <label class="field"><span>Имя</span>
+    <input name="name" autocomplete="given-name" value="{{ values.get('name', '') }}">
+  </label>
+  <label class="field"><span>Комментарий</span>
+    <input name="comment" placeholder="адрес доставки, сроки" value="{{ values.get('comment', '') }}">
+  </label>
+  <label class="hp" aria-hidden="true">Сайт <input name="website" tabindex="-1" autocomplete="off"></label>
+  <button class="btn" type="submit">Отправить заявку</button>
+  <p class="muted small">Нажимая кнопку, вы соглашаетесь на обработку персональных данных.</p>
+</form>

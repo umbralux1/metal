@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>{{ meta.h1 }}</h1>
-<ul class="tiles">
-  {% for c in categories %}<li><a href="{{ c.url }}">{{ c.name }}</a></li>{% endfor %}
+<ul class="tiles tiles-lg">
+  {% for c in categories %}<li><a href="{{ c.url }}">{{ category_icon(c.slug) }}<span>{{ c.name }}</span></a></li>{% endfor %}
 </ul>
 {% endblock %}

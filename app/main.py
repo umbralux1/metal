@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -9,7 +10,9 @@ from app.catalog import repository as repo
 from app.catalog.router import router as catalog_router
 from app.core.config import settings
 from app.core.db import SessionLocal, engine
+from app.core.nav import NavMiddleware
 from app.core.templating import TEMPLATES_DIR, templates
+from app.leads.router import router as leads_router
 from app.pages.router import router as pages_router
 from app.seo.meta import PageMeta, absolute
 from app.seo.middleware import CanonicalUrlMiddleware
@@ -23,6 +26,7 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     app = FastAPI(
         title=settings.site_name,
         lifespan=lifespan,
@@ -30,12 +34,14 @@ def create_app() -> FastAPI:
         redoc_url=None,
         openapi_url="/openapi.json" if settings.debug else None,
     )
+    app.add_middleware(NavMiddleware)
     app.add_middleware(CanonicalUrlMiddleware)
     app.mount("/static", StaticFiles(directory=str(TEMPLATES_DIR.parent / "static")), name="static")
 
     app.include_router(pages_router)
     app.include_router(catalog_router)
     app.include_router(seo_router)
+    app.include_router(leads_router)
 
     @app.exception_handler(StarletteHTTPException)
     async def http_error(request: Request, exc: StarletteHTTPException):

@@ -1,29 +1,27 @@
 {% if products.items %}
-<div class="table-wrap">
 <table class="products">
   <thead>
-    <tr><th>Наименование</th><th>Размер</th><th>Марка</th><th>ГОСТ</th><th>Вес 1 м, кг</th><th>Цена</th></tr>
+    <tr><th scope="col">Наименование</th><th scope="col">Размер</th><th scope="col">Марка</th><th scope="col">ГОСТ</th><th scope="col" class="num">Вес 1 м, кг</th><th scope="col" class="num">Цена</th></tr>
   </thead>
   <tbody>
   {% for p in products.items %}
     <tr>
-      <td><a href="{{ p.url }}">{{ p.name }}</a></td>
-      <td>{{ p.size_label }}</td>
-      <td>{{ p.steel_grade or "" }}</td>
-      <td>{{ p.gost or "" }}</td>
-      <td>{{ p.weight_per_m_kg | num }}</td>
-      <td class="price">
+      <td class="p-name"><a href="{{ p.url }}">{{ category_icon(p.path.split('/')[0]) }}<span>{{ p.name }}</span></a></td>
+      <td data-label="Размер">{{ p.size_label }}</td>
+      <td data-label="Марка">{{ p.steel_grade or "" }}</td>
+      <td data-label="ГОСТ">{{ p.gost or "" }}</td>
+      <td data-label="Вес 1 м" class="num">{{ p.weight_per_m_kg | num }}</td>
+      <td class="num p-price">
         {% set bp = p.base_price %}
-        {% if bp %}{{ bp.amount_kop | rub }}/{{ bp.unit.label }}{% else %}по запросу{% endif %}
-        {% for pr in p.prices if pr.unit != p.base_unit %}<br><small>{{ pr.amount_kop | rub }}/{{ pr.unit.label }}</small>{% endfor %}
+        {% if bp %}<strong>{{ bp.amount_kop | rub }}</strong><span class="unit">/{{ bp.unit.label }}</span>{% else %}по запросу{% endif %}
+        {% for pr in p.prices if pr.unit != p.base_unit %}<small>{{ pr.amount_kop | rub }}/{{ pr.unit.label }}</small>{% endfor %}
       </td>
     </tr>
   {% endfor %}
   </tbody>
 </table>
-</div>
 {% else %}
-<p>Товары скоро появятся. Позвоните — подберём наличие.</p>
+<p class="empty">В этом разделе пока нет товаров. Позвоните — подберём из наличия: <a href="{{ phone_href(settings.phone) }}">{{ settings.phone }}</a></p>
 {% endif %}
 
 {% if products.pages > 1 %}

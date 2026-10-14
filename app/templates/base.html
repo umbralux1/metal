@@ -13,23 +13,49 @@
   <meta property="og:title" content="{{ meta.title }}">
   {% if meta.description %}<meta property="og:description" content="{{ meta.description }}">{% endif %}
   <meta property="og:url" content="{{ meta.canonical }}">
+  <meta name="theme-color" content="#1b2630">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/static/fonts/golos-text.woff" as="font" type="font/woff" crossorigin>
   <link rel="stylesheet" href="/static/css/main.css">
   {% for block in jsonld | default([]) %}
   <script type="application/ld+json">{{ block | safe }}</script>
   {% endfor %}
 </head>
+{% set nav = request.state.nav or [] %}
 <body>
+  <a class="skip-link" href="#main">К содержанию</a>
   <header class="site-header">
-    <div class="container header-row">
-      <a class="logo" href="/">{{ settings.site_name }}</a>
-      <nav class="main-nav" aria-label="Основное меню">
-        <a href="/catalog/">Каталог</a>
-      </nav>
-      <a class="phone" href="tel:{{ settings.phone | replace(' ', '') | replace('(', '') | replace(')', '') | replace('-', '') }}">{{ settings.phone }}</a>
+    <div class="container header-main">
+      <a class="brand" href="/" aria-label="{{ settings.site_name }} — на главную">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="4.5" y="4.5" width="15" height="15" rx="2"/><rect x="8" y="8" width="8" height="8" rx=".6"/></svg>
+        </span>
+        <span class="brand-name">{{ settings.site_name }}</span>
+      </a>
+      <form class="search" action="/search/" method="get" role="search">
+        <input type="search" name="q" value="{{ q | default('') }}" placeholder="Например, труба 40х20" aria-label="Поиск по каталогу" autocomplete="off">
+        <button type="submit" aria-label="Найти">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+        </button>
+      </form>
+      <div class="header-contact">
+        <a class="phone" href="{{ phone_href(settings.phone) }}">{{ settings.phone }}</a>
+        <span class="hours">{{ settings.work_hours }}</span>
+      </div>
     </div>
+    {% if nav %}
+    <nav class="cat-nav" aria-label="Разделы каталога">
+      <div class="container cat-nav-row">
+        {% for c in nav %}
+        <a href="{{ c.url }}" {% if request.url.path.startswith(c.url) %}aria-current="page"{% endif %}>{{ category_icon(c.slug) }}<span>{{ c.name }}</span></a>
+        {% endfor %}
+        <a href="/catalog/" class="cat-nav-all" {% if request.url.path == '/catalog/' %}aria-current="page"{% endif %}>Весь каталог</a>
+      </div>
+    </nav>
+    {% endif %}
   </header>
 
-  <main class="container">
+  <main id="main" class="container">
     {% if breadcrumbs %}
     <nav class="breadcrumbs" aria-label="Хлебные крошки">
       <ol>
@@ -44,9 +70,46 @@
   </main>
 
   <footer class="site-footer">
-    <div class="container">
-      <p>{{ settings.site_name }} · {{ settings.city }} · <a href="tel:{{ settings.phone | replace(' ', '') | replace('(', '') | replace(')', '') | replace('-', '') }}">{{ settings.phone }}</a> · <a href="mailto:{{ settings.email }}">{{ settings.email }}</a></p>
+    <div class="container footer-grid">
+      <div class="footer-about">
+        <p class="footer-brand">{{ settings.site_name }}</p>
+        <p>Металлопрокат в розницу от одного прутка. Режем в размер и привозим по {{ settings.city_prepositional }} и области.</p>
+      </div>
+      {% if nav %}
+      <div>
+        <h2>Каталог</h2>
+        <ul>{% for c in nav %}<li><a href="{{ c.url }}">{{ c.name }}</a></li>{% endfor %}</ul>
+      </div>
+      {% endif %}
+      <div>
+        <h2>Контакты</h2>
+        <ul>
+          <li><a href="{{ phone_href(settings.phone) }}">{{ settings.phone }}</a></li>
+          <li>{{ settings.work_hours }}</li>
+          <li><a href="mailto:{{ settings.email }}">{{ settings.email }}</a></li>
+          {% if settings.address %}<li>{{ settings.address }}</li>{% endif %}
+        </ul>
+      </div>
     </div>
+    <div class="container footer-bottom"><p>© {{ current_year() }} {{ settings.site_name }}</p></div>
   </footer>
+
+  <nav class="mobile-bar" aria-label="Быстрые действия">
+    <a href="{{ phone_href(settings.phone) }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"/></svg>
+      Позвонить
+    </a>
+    {% if settings.whatsapp %}<a href="https://wa.me/{{ settings.whatsapp }}" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1.3-4A8 8 0 1 1 8 18.7z"/></svg>
+      WhatsApp</a>{% endif %}
+    {% if settings.telegram %}<a href="https://t.me/{{ settings.telegram }}" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 4.5L3.5 11l6 2 2 6 3-4 4 3z"/></svg>
+      Telegram</a>{% endif %}
+    <a href="/catalog/">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>
+      Каталог
+    </a>
+  </nav>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog import repository as repo
+from app.catalog.calculator import CalcError, calculate, default_input, parse_input
 from app.catalog.models import Category, FilterLanding, Product
 from app.core.config import settings
 from app.core.db import get_session
@@ -42,6 +43,22 @@ async def catalog_index(request: Request, session: AsyncSession = Depends(get_se
             "jsonld": [jsonld.to_script(jsonld.breadcrumbs(crumbs))],
         },
     )
+
+
+@router.get("/search/", response_class=HTMLResponse, name="search")
+async def search(request: Request, q: str = "", session: AsyncSession = Depends(get_session)):
+    query = q.strip()[:100]
+    found = await repo.search_products(session, query) if query else []
+    products = repo.ProductPage(items=found, total=len(found), page=1, pages=1)
+    meta = PageMeta(
+        title=f"Поиск «{query}» | {settings.site_name}" if query else f"Поиск по каталогу | {settings.site_name}",
+        description="",
+        h1=f"Поиск «{query}»" if query else "Поиск по каталогу",
+        canonical=absolute("/search/"),
+        robots="noindex, follow",
+    )
+    context = {"meta": meta, "q": query, "products": products}
+    return templates.TemplateResponse(request, "search.html", context)
 
 
 @router.get("/catalog/{path:path}/", response_class=HTMLResponse, name="catalog_node")
@@ -107,12 +124,40 @@ async def _render_landing(request: Request, session: AsyncSession, landing: Filt
     return templates.TemplateResponse(request, "catalog/listing.html", context)
 
 
+def _calc_context(product: Product, params) -> dict:
+    """Расчёт для карточки: по параметрам формы или по умолчанию (1 пруток / 1 метр)."""
+    has_input = any(k in params for k in ("qty", "cut", "unit"))
+    try:
+        inp = parse_input(params, product) if has_input else default_input(product)
+        result = calculate(product, inp, settings.cut_price_kop, settings.ton_price_from_kg)
+        return {"calc": result, "calc_error": None, "params": params if has_input else _params_from(inp)}
+    except CalcError as exc:
+        return {"calc": None, "calc_error": str(exc), "params": params}
+
+
+def _params_from(inp) -> dict:
+    return {"unit": inp.unit, "qty": f"{inp.quantity.normalize():f}" if inp.quantity is not None else ""}
+
+
+@router.get("/api/calc/{product_id}/", response_class=HTMLResponse, include_in_schema=False)
+async def calc_partial(request: Request, product_id: int, session: AsyncSession = Depends(get_session)):
+    """Кусок HTML с итогом — для пересчёта на лету без перезагрузки страницы."""
+    product = await session.get(Product, product_id)
+    if product is None or not product.is_active:
+        raise HTTPException(status_code=404)
+    context = {"product": product, **_calc_context(product, request.query_params)}
+    response = templates.TemplateResponse(request, "catalog/_calc_result.html", context)
+    response.headers["X-Robots-Tag"] = "noindex"
+    return response
+
+
 async def _render_product(request: Request, session: AsyncSession, product: Product):
     category_path = product.path.rsplit("/", 1)[0]
     crumbs = _crumbs(await repo.breadcrumb_categories(session, category_path), (product.name, product.url))
     context = {
         "meta": product_meta(request, product),
         "product": product,
+        **_calc_context(product, request.query_params),
         "breadcrumbs": crumbs,
         "jsonld": [jsonld.to_script(jsonld.breadcrumbs(crumbs)), jsonld.to_script(jsonld.product(product))],
     }

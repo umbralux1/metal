@@ -6,6 +6,7 @@ from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog.models import Category, FilterLanding, Price, Product, Redirect
+from app.catalog.utils import normalize_search
 
 # Какие ключи FilterLanding.filters можно применять и к каким колонкам
 FILTERABLE_COLUMNS = {
@@ -132,3 +133,16 @@ async def min_price_kop(session: AsyncSession, category_path: str, filters: dict
     )
     stmt = _apply_filters(stmt, filters or {})
     return await session.scalar(stmt)
+
+
+async def search_products(session: AsyncSession, query: str, limit: int = 60) -> list[Product]:
+    """Все слова запроса должны встретиться в search_text; сверху — самые похожие (pg_trgm)."""
+    norm = normalize_search(query)
+    tokens = norm.split()[:6]
+    if not tokens:
+        return []
+    stmt = select(Product).where(Product.is_active.is_(True))
+    for token in tokens:
+        stmt = stmt.where(Product.search_text.contains(token, autoescape=True))
+    stmt = stmt.order_by(func.similarity(Product.search_text, norm).desc(), Product.name).limit(limit)
+    return list(await session.scalars(stmt))
