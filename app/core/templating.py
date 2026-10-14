@@ -18,9 +18,12 @@ def format_rub(kop: int | None) -> str:
 
 
 def format_decimal(value) -> str:
+    """Decimal, int или float → «11,7», «1», «0,888»."""
     if value is None:
         return ""
-    return f"{value.normalize():f}".replace(".", ",")
+    from decimal import Decimal
+
+    return f"{Decimal(str(value)).normalize():f}".replace(".", ",")
 
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))

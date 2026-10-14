@@ -33,7 +33,7 @@
         {% if product.sku %}<tr><th scope="row">Артикул</th><td>{{ product.sku }}</td></tr>{% endif %}
       </table>
 
-      {% if product.seo_text %}<section class="seo-text">{{ product.seo_text | safe }}</section>{% endif %}
+      <section class="seo-text">{{ (product.seo_text or auto_text) | safe }}</section>
     </div>
 
     <aside class="buy" id="calc" aria-labelledby="calc-title">
@@ -42,8 +42,11 @@
           {% set bp = product.base_price %}
           {% if bp %}
           <p class="price-main">{{ bp.amount_kop | rub }}<span> за {{ bp.unit.label }}</span></p>
+          {% if piece_kop %}
+          <p class="price-alt">{{ piece_kop | rub }} за штуку {{ product.length_m | num }} м</p>
+          {% endif %}
           {% for pr in product.prices if pr.unit != product.base_unit %}
-          <p class="price-alt">{{ pr.amount_kop | rub }} за {{ pr.unit.label }}{% if pr.unit.value == 't' %}, от 1 т{% endif %}</p>
+          <p class="price-alt">{{ pr.amount_kop | rub }} за {{ pr.unit.label }}{% if pr.unit.value == 't' %}, от {{ (settings.ton_price_from_kg / 1000) | num }} т{% endif %}</p>
           {% endfor %}
           {% else %}
           <p class="price-main">Цена по запросу</p>
@@ -90,6 +93,36 @@
       </div>
     </aside>
   </div>
+
+  {% if same_size %}
+  <section class="related">
+    <h2>{{ size.name }}: другие варианты</h2>
+    <table class="related-table">
+      <thead><tr><th scope="col">Товар</th><th scope="col">Стенка / марка</th><th scope="col" class="num">Вес 1 м</th><th scope="col" class="num">Цена</th></tr></thead>
+      <tbody>
+        {% for p in same_size %}
+        {% set pp = p.base_price %}
+        <tr>
+          <td><a href="{{ p.url }}">{{ p.name }}</a></td>
+          <td>{% if p.thickness_mm %}{{ p.thickness_mm | num }} мм{% endif %}{% if p.thickness_mm and p.steel_grade %}, {% endif %}{{ p.steel_grade or '' }}</td>
+          <td class="num">{% if p.weight_per_m_kg %}{{ p.weight_per_m_kg | num }} кг{% endif %}</td>
+          <td class="num">{% if pp %}{{ pp.amount_kop | rub }}/{{ pp.unit.label }}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if size.is_indexable %}<p class="related-all"><a href="{{ size.url }}">Все товары: {{ size.name }}</a></p>{% endif %}
+  </section>
+  {% endif %}
+
+  {% if neighbours %}
+  <nav class="sizes related" aria-label="Соседние размеры">
+    <h2>Другие размеры</h2>
+    <ul class="chips">
+      {% for l in neighbours %}<li><a href="{{ l.url }}">{{ l.name }}</a></li>{% endfor %}
+    </ul>
+  </nav>
+  {% endif %}
 </article>
 {% endblock %}
 {% block scripts %}<script src="/static/js/calc.js" defer></script>{% endblock %}

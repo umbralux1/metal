@@ -1,9 +1,10 @@
 """Точка входа: `python main.py`.
 
+Перед стартом — и локально, и на хостинге: миграции, демо-данные при SEED_DEMO=true,
+посадочные и адреса товаров (AUTO_LANDINGS=true). Так локальная база всегда в том же виде, что на Render.
+
 Локально — сервер для разработки на 127.0.0.1:8000 с автоперезагрузкой.
-На хостинге (задана переменная PORT, как на Render) — миграции, демо-данные при SEED_DEMO=true
-(из окружения или deploy/render.env)
-и боевой запуск на 0.0.0.0:$PORT без автоперезагрузки.
+На хостинге (задана переменная PORT, как на Render) — запуск на 0.0.0.0:$PORT без автоперезагрузки.
 """
 
 import os
@@ -21,7 +22,7 @@ def server_options(env: dict[str, str]) -> dict:
 
 
 def prepare_database() -> None:
-    """На хостинге перед стартом: схема БД и (по желанию) демо-данные."""
+    """Перед стартом сервера: схема БД, демо-данные (по желанию), посадочные и адреса товаров."""
     import asyncio
 
     from alembic.config import main as alembic
@@ -43,6 +44,6 @@ if __name__ == "__main__":
     import uvicorn
 
     options = server_options(dict(os.environ))
-    if not options["reload"]:
-        prepare_database()
+    # Один раз в основном процессе: при автоперезагрузке код перезапускается без повторных миграций
+    prepare_database()
     uvicorn.run("app.main:app", **options)

@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.catalog.landings import generate_landings
 from app.catalog.models import Category, FilterLanding, Price, Product, Unit
 from app.catalog.utils import normalize_search, slugify
-from app.core.db import SessionLocal
+from app.core.db import SessionLocal, engine
 
 D = Decimal
 
@@ -195,13 +195,14 @@ async def seed(session: AsyncSession) -> bool:
 
     session.add_all([armatura, a500c, a1, truba, kvadr, pryam, *products, *landings])
     await session.commit()
-    await generate_landings(session)
+    await generate_landings(session, fresh_ids={p.id for p in products})
     return True
 
 
 async def main() -> None:
     async with SessionLocal() as session:
         created = await seed(session)
+    await engine.dispose()
     print("Демо-данные загружены" if created else "База уже заполнена, пропускаю")
 
 

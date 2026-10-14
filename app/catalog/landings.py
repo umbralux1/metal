@@ -6,6 +6,7 @@
 - Обновляет свои (is_generated) посадочные: тексты, фильтр, «в индексе».
 - Размер пропал или товаров стало меньше порога — страница не удаляется, а получает noindex (адрес не ломается).
 - Ручные посадочные не трогает. Посадочная, которую поправили в админке, становится ручной.
+- Ведёт адреса товаров: товар размера лежит внутри его посадочной (…/20x20/20x20x2/), старые адреса — 301.
 """
 
 import asyncio
@@ -18,10 +19,11 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.catalog.landing_rules import RULES, LandingRule
+from app.catalog.landing_rules import RULES, LandingRule, display_name, product_slug, qualifier_for, rule_for
 from app.catalog.models import Category, FilterLanding, Product, Unit
+from app.catalog.utils import slugify
 from app.core.config import settings
-from app.core.db import SessionLocal
+from app.core.db import SessionLocal, engine
 from app.core.templating import format_rub
 from app.seo.meta import PRICE_TOKEN
 
@@ -31,9 +33,13 @@ class Report:
     created: list[str] = field(default_factory=list)
     updated: list[str] = field(default_factory=list)
     hidden: list[str] = field(default_factory=list)
+    moved: list[str] = field(default_factory=list)  # товары, сменившие адрес
 
     def __str__(self) -> str:
-        return f"создано {len(self.created)}, обновлено {len(self.updated)}, скрыто из индекса {len(self.hidden)}"
+        return (
+            f"создано {len(self.created)}, обновлено {len(self.updated)}, скрыто из индекса {len(self.hidden)}, "
+            f"товаров с новым адресом {len(self.moved)}"
+        )
 
 
 # --- Форматирование ---------------------------------------------------------------------------------
@@ -110,7 +116,9 @@ class LandingTexts:
     seo_text: str
 
 
-def build_texts(rule: LandingRule, values: tuple[Decimal, ...], products: list[Product]) -> LandingTexts:
+def build_texts(
+    rule: LandingRule, values: tuple[Decimal, ...], products: list[Product], qualifier: str = ""
+) -> LandingTexts:
     """Тексты посадочной из фактов о товарах: марки, ГОСТ, длины, вес метра, метров в тонне.
 
     Цифры у каждого размера свои, поэтому тексты не повторяют друг друга от страницы к странице.
@@ -126,9 +134,11 @@ def build_texts(rule: LandingRule, values: tuple[Decimal, ...], products: list[P
     thicknesses = sorted({p.thickness_mm for p in products if p.thickness_mm and "thickness_mm" not in rule.keys})
     weights = sorted({p.weight_per_m_kg for p in products if p.weight_per_m_kg})
 
-    title = f"{name} купить в {s.city_prepositional} {PRICE_TOKEN} — {_units_phrase(products)}"
+    # В title и description — с уточнением подраздела: «Труба профильная квадратная 40х40»
+    shown = f"{rule.noun} {qualifier} {size_label(rule, values)}" if qualifier else name
+    title = f"{shown} купить в {s.city_prepositional} {PRICE_TOKEN} — {_units_phrase(products)}"
     if len(title.replace(PRICE_TOKEN, "от 99 999 ₽")) > 75:
-        title = f"{name} купить в {s.city_prepositional} {PRICE_TOKEN}"
+        title = f"{shown} купить в {s.city_prepositional} {PRICE_TOKEN}"
 
     facts = []
     if grades:
@@ -138,7 +148,7 @@ def build_texts(rule: LandingRule, values: tuple[Decimal, ...], products: list[P
     if lengths:
         facts.append("длина " + _join([f"{num(v)} м" for v in lengths]))
     description = (
-        f"{name} {PRICE_TOKEN}: {n} {_plural(n, 'позиция', 'позиции', 'позиций')} {availability}"
+        f"{shown} {PRICE_TOKEN}: {n} {_plural(n, 'позиция', 'позиции', 'позиций')} {availability}"
         + (f" ({'; '.join(facts)})" if facts else "")
         + f". Продаём {rule.piece}, режем в размер, доставка по {s.city_prepositional} и области."
     )
@@ -175,6 +185,52 @@ def build_texts(rule: LandingRule, values: tuple[Decimal, ...], products: list[P
     return LandingTexts(name=name, h1=name, title=title, description=description, seo_text="".join(parts))
 
 
+# --- Текст карточки товара ------------------------------------------------------------------------
+
+
+def product_seo_text(product: Product) -> str:
+    """Абзацы для карточки из данных товара: вес, метров в тонне, вес и цена штуки, где применяют.
+
+    Показывается, если в админке у товара не задан свой SEO-текст.
+    """
+    s = settings
+    rule = rule_for(product.category.path) if product.category else None
+    shown = display_name(product.name, product.category.path) if product.category else product.name
+    sentences = []
+    if product.weight_per_m_kg:
+        w = Decimal(str(product.weight_per_m_kg))
+        per_ton = round(1000 / float(w))
+        sentences.append(f"Вес 1 метра — {num(w)} кг, в тонне около {per_ton} м.")
+        if product.length_m:
+            piece = (w * Decimal(str(product.length_m))).quantize(Decimal("0.01"))
+            sentences.append(f"Одна штука длиной {num(product.length_m)} м весит {num(piece)} кг.")
+    facts = [
+        x
+        for x in (
+            product.steel_grade and f"марка — {product.steel_grade}",
+            product.gost and f"стандарт — {product.gost}",
+        )
+        if x
+    ]
+    if facts:
+        sentences.append(", ".join(facts).capitalize() + ".")
+    meter = product.price_for(Unit.METER)
+    if meter and product.length_m:
+        piece_kop = round(meter.amount_kop * float(product.length_m))
+        sentences.append(f"Цена за штуку {num(product.length_m)} м — {format_rub(piece_kop)}.")
+    parts = [f"<h2>{escape(shown)}</h2>"]
+    if sentences:
+        parts.append(f"<p>{escape(' '.join(sentences))}</p>")
+    if rule and rule.usage:
+        parts.append(f"<p>{escape(rule.usage)}</p>")
+    piece = rule.piece if rule else "от одной штуки"
+    parts.append(
+        f"<p>Продаём {escape(piece)}, режем в размер — {escape(format_rub(s.cut_price_kop))} за рез. "
+        f"Доставляем по {escape(s.city_prepositional)} и Московской области на объект.</p>"
+    )
+    return "".join(parts)
+
+
 # --- Генерация --------------------------------------------------------------------------------------
 
 
@@ -189,14 +245,28 @@ def _common_category(paths: list[str]) -> str:
     return "/".join(common)
 
 
-async def generate_landings(session: AsyncSession, rules: tuple[LandingRule, ...] = RULES) -> Report:
+def _in_subtree(category_path: str, root: str) -> bool:
+    return category_path == root or category_path.startswith(root + "/")
+
+
+async def generate_landings(
+    session: AsyncSession, rules: tuple[LandingRule, ...] = RULES, fresh_ids: set[int] | None = None
+) -> Report:
+    """Посадочные под размеры и адреса товаров.
+
+    Товар размера лежит внутри посадочной: /catalog/truba-profilnaya/kvadratnaya/20x20/20x20x2/.
+    Остальные товары — внутри своего раздела. Сменился адрес — ставится 301 со старого
+    (кроме товаров из fresh_ids: их только что создали, старый адрес нигде не успел появиться).
+    """
     report = Report()
+    fresh_ids = fresh_ids or set()
     categories = {c.path: c for c in await session.scalars(select(Category))}
     products = list(await session.scalars(select(Product).where(Product.is_active.is_(True))))
     landings = list(await session.scalars(select(FilterLanding)))
     by_path = {item.path: item for item in landings}
     taken = set(categories) | {p.path for p in products}
     seen: set[int] = set()
+    parent_of: dict[int, str] = {}  # товар → адрес посадочной, внутри которой он лежит
 
     for rule in rules:
         root = categories.get(rule.category_path)
@@ -204,62 +274,76 @@ async def generate_landings(session: AsyncSession, rules: tuple[LandingRule, ...
             continue
         groups: dict[tuple[Decimal, ...], list[Product]] = defaultdict(list)
         for p in products:
-            if not p.path.startswith(root.path + "/"):
+            if not p.category or not _in_subtree(p.category.path, root.path):
                 continue
             values = tuple(getattr(p, key) for key in rule.keys)
             if all(v is not None for v in values):
                 groups[tuple(Decimal(str(v)).normalize() for v in values)].append(p)
 
         for sort, values in enumerate(sorted(groups), start=1):
-            items = sorted(groups[values], key=lambda p: p.path)
+            items = sorted(groups[values], key=lambda p: p.name)
             target = _common_category([p.category.path for p in items]) or root.path
-            if target not in categories or not target.startswith(root.path):
+            if target not in categories or not _in_subtree(target, root.path):
                 target = root.path
             path = f"{target}/{size_slug(rule, values)}"
             filters = {k: _json_num(v) for k, v in zip(rule.keys, values, strict=True)}
             wanted = len(items) >= rule.min_products
-            texts = build_texts(rule, values, items)
             landing = by_path.get(path)
-
-            if landing is not None and not landing.is_generated:
-                continue  # адрес занят ручной посадочной — она важнее
-            if landing is None:
-                if not wanted or path in taken:
-                    continue
-                # Тот же фильтр уже закрыт ручной посадочной в этом разделе — второй страницы не делаем
-                if any(
-                    not item.is_generated
-                    and item.is_indexable
+            # Ручная посадочная с тем же фильтром в этом разделе важнее — товары кладём в неё
+            manual = next(
+                (
+                    item
+                    for item in landings
+                    if not item.is_generated
                     and item.path.startswith(root.path + "/")
                     and normalize_filters(item.filters) == normalize_filters(filters)
-                    for item in landings
-                ):
-                    continue
-                landing = FilterLanding(
-                    category_id=categories[target].id,
-                    slug=path.rsplit("/", 1)[1],
-                    path=path,
-                    is_generated=True,
-                )
-                session.add(landing)
-                landings.append(landing)
-                by_path[path] = landing
-                report.created.append(path)
-            elif landing.is_indexable and not wanted:
-                report.hidden.append(path)
-            else:
-                report.updated.append(path)
+                ),
+                None,
+            )
 
-            landing.name = texts.name
-            landing.h1 = texts.h1
-            landing.title = texts.title
-            landing.description = texts.description
-            landing.seo_text = texts.seo_text
-            landing.filters = filters
-            landing.sort = sort * 10
-            landing.is_indexable = wanted
-            if landing.id is not None:
-                seen.add(landing.id)
+            if landing is not None and not landing.is_generated:
+                parent = landing if normalize_filters(landing.filters) == normalize_filters(filters) else manual
+            elif manual is not None:
+                parent = manual
+                if landing is not None and landing.is_indexable:  # дубль ручной — убираем из индекса
+                    landing.is_indexable = False
+                    report.hidden.append(landing.path)
+            else:
+                if landing is None:
+                    if path in taken:
+                        continue
+                    # Посадочная создаётся и для одного товара — как раздел-родитель для его адреса,
+                    # но в индекс идёт только с MIN_PRODUCTS товарами (иначе дублирует карточку)
+                    landing = FilterLanding(
+                        category_id=categories[target].id,
+                        slug=path.rsplit("/", 1)[1],
+                        path=path,
+                        is_generated=True,
+                    )
+                    session.add(landing)
+                    landings.append(landing)
+                    by_path[path] = landing
+                    report.created.append(path)
+                elif landing.is_indexable and not wanted:
+                    report.hidden.append(path)
+                else:
+                    report.updated.append(path)
+                texts = build_texts(rule, values, items, qualifier_for(rule, target))
+                landing.name = texts.name
+                landing.h1 = texts.h1
+                landing.title = texts.title
+                landing.description = texts.description
+                landing.seo_text = texts.seo_text
+                landing.filters = filters
+                landing.sort = sort * 10
+                landing.is_indexable = wanted
+                if landing.id is not None:
+                    seen.add(landing.id)
+                parent = landing
+
+            if parent is not None:
+                for p in items:
+                    parent_of[p.id] = parent.path
 
     # Свои посадочные, чей размер пропал из каталога: оставляем адрес, убираем из индекса
     for landing in landings:
@@ -267,13 +351,48 @@ async def generate_landings(session: AsyncSession, rules: tuple[LandingRule, ...
             landing.is_indexable = False
             report.hidden.append(landing.path)
 
+    await session.flush()
+    await _sync_product_paths(session, products, parent_of, taken, fresh_ids, report)
     await session.commit()
     return report
+
+
+async def _sync_product_paths(
+    session: AsyncSession,
+    products: list[Product],
+    parent_of: dict[int, str],
+    taken: set[str],
+    fresh_ids: set[int],
+    report: Report,
+) -> None:
+    from app.catalog.paths import add_redirect
+
+    for p in sorted(products, key=lambda item: item.path):
+        if not p.category:
+            continue
+        # Slug, собранный из названия (старый длинный или новый короткий), приводим к короткому;
+        # slug, заданный в админке руками, не трогаем
+        short = product_slug(p.name, p.category.path)
+        if p.slug in (slugify(p.name), short):
+            p.slug = short
+        parent = parent_of.get(p.id, p.category.path)
+        new_path = f"{parent}/{p.slug}"
+        if new_path == p.path or new_path in taken:
+            continue
+        old_path = p.path
+        taken.discard(old_path)
+        taken.add(new_path)
+        p.path = new_path
+        await session.flush()
+        if p.id not in fresh_ids:
+            await add_redirect(session, old_path, new_path)
+        report.moved.append(new_path)
 
 
 async def main() -> None:
     async with SessionLocal() as session:
         report = await generate_landings(session)
+    await engine.dispose()
     print(f"Посадочные: {report}")
 
 

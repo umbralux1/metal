@@ -94,8 +94,6 @@ class CategoryAdmin(ModelView, model=Category):
                 raise ValueError(f"Адрес {paths.url(new_path)} уже занят другой страницей")
         model._old_path = None if is_created else model.path
         data["path"] = new_path
-        # Правка руками: генератор больше не трогает эту посадочную
-        model.is_generated = False
 
     async def after_model_change(self, data: dict, model: Category, is_created: bool, request: Request) -> None:
         old = getattr(model, "_old_path", None)
@@ -104,6 +102,7 @@ class CategoryAdmin(ModelView, model=Category):
                 await paths.add_redirect(session, old, model.path)
                 await paths.move_tree(session, old, model.path)
                 await session.commit()
+                await generate_landings(session)
         reset_nav_cache()
 
 
@@ -181,23 +180,30 @@ class ProductAdmin(ModelView, model=Product):
             category_path = await paths.parent_path(session, data.get("category"))
             if not category_path:
                 raise ValueError("Выберите раздел")
-            new_path = f"{category_path}/{data['slug']}"
-            if await paths.path_taken(session, new_path, exclude=None if is_created else model):
+            unchanged = (
+                not is_created
+                and data["slug"] == model.slug
+                and str(data.get("category")) == str(model.category_id)
+                and data.get("name") == model.name
+            )
+            # Раздел, slug и название те же — адрес не трогаем (товар может лежать внутри посадочной размера)
+            new_path = model.path if unchanged else f"{category_path}/{data['slug']}"
+            if not unchanged and await paths.path_taken(session, new_path, exclude=None if is_created else model):
                 raise ValueError(f"Адрес {paths.url(new_path)} уже занят другой страницей")
         model._old_path = None if is_created else model.path
         data["path"] = new_path
-        # Правка руками: генератор больше не трогает эту посадочную
-        model.is_generated = False
         data["search_text"] = normalize_search(
             " ".join(_clean(data.get(k)) for k in ("name", "sku", "steel_grade", "gost"))
         )
 
     async def after_model_change(self, data: dict, model: Product, is_created: bool, request: Request) -> None:
         old = getattr(model, "_old_path", None)
-        if old and old != model.path:
-            async with SessionLocal() as session:
+        async with SessionLocal() as session:
+            if old and old != model.path:
                 await paths.add_redirect(session, old, model.path)
                 await session.commit()
+            # Новый размер — новая посадочная; товар переезжает внутрь посадочной своего размера
+            await generate_landings(session, fresh_ids={model.id} if is_created else None)
 
 
 class PriceAdmin(ModelView, model=Price):
@@ -313,10 +319,12 @@ class FilterLandingAdmin(ModelView, model=FilterLanding):
 
     async def after_model_change(self, data: dict, model: FilterLanding, is_created: bool, request: Request) -> None:
         old = getattr(model, "_old_path", None)
-        if old and old != model.path:
-            async with SessionLocal() as session:
+        async with SessionLocal() as session:
+            if old and old != model.path:
                 await paths.add_redirect(session, old, model.path)
+                await paths.move_tree(session, old, model.path)  # товары внутри посадочной
                 await session.commit()
+            await generate_landings(session)
 
     async def after_model_delete(self, model: FilterLanding, request: Request) -> None:
         # Удалённая посадочная перенаправляет в свой раздел, а не отдаёт 404

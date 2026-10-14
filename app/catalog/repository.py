@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog.models import Category, FilterLanding, Price, Product, Redirect
@@ -46,8 +46,15 @@ def _apply_filters(stmt: Select, filters: dict[str, Any]) -> Select:
 
 
 def _in_category(category_path: str):
-    """Товары раздела и всех его подразделов: по префиксу пути."""
-    return Product.path.startswith(category_path + "/", autoescape=True)
+    """Товары раздела и всех его подразделов — по разделу товара, а не по адресу.
+
+    Адрес товара может лежать в посадочной размера выше своего раздела
+    (armatura/12-mm/12-mm-a500s при разделе armatura/a500c), поэтому префикс пути здесь не подходит.
+    """
+    subtree = select(Category.id).where(
+        or_(Category.path == category_path, Category.path.startswith(category_path + "/", autoescape=True))
+    )
+    return Product.category_id.in_(subtree)
 
 
 async def get_category(session: AsyncSession, path: str) -> Category | None:
@@ -95,6 +102,35 @@ async def category_landings(session: AsyncSession, category: Category) -> list[F
             FilterLanding.path.startswith(category.path + "/", autoescape=True),
         )
         .order_by(FilterLanding.sort, FilterLanding.name)
+    )
+    return list(await session.scalars(stmt))
+
+
+async def breadcrumb_nodes(session: AsyncSession, path: str) -> list[Category | FilterLanding]:
+    """Предки по адресу: разделы и посадочные размера (у товара внутри посадочной она тоже в крошках)."""
+    parts = path.split("/")
+    prefixes = ["/".join(parts[: i + 1]) for i in range(len(parts))]
+    categories = list(await session.scalars(select(Category).where(Category.path.in_(prefixes))))
+    landings = list(await session.scalars(select(FilterLanding).where(FilterLanding.path.in_(prefixes))))
+    return sorted([*categories, *landings], key=lambda node: len(node.path))
+
+
+async def size_landing(session: AsyncSession, product: Product) -> FilterLanding | None:
+    """Посадочная размера, внутри которой лежит товар (адрес товара = её адрес + slug)."""
+    parent = product.path.rsplit("/", 1)[0]
+    return await session.scalar(select(FilterLanding).where(FilterLanding.path == parent))
+
+
+async def same_size_products(session: AsyncSession, landing: FilterLanding, exclude: Product) -> list[Product]:
+    """Другие толщины / марки того же размера — товары внутри той же посадочной."""
+    stmt = (
+        select(Product)
+        .where(
+            Product.path.startswith(landing.path + "/", autoescape=True),
+            Product.is_active.is_(True),
+            Product.id != exclude.id,
+        )
+        .order_by(Product.thickness_mm, Product.name)
     )
     return list(await session.scalars(stmt))
 

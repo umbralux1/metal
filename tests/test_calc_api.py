@@ -7,7 +7,7 @@ from app.leads.models import Lead
 from app.leads.router import normalize_phone
 from tests.helpers import PageInfo
 
-PRODUCT_URL = "/catalog/armatura/a500c/armatura-12-mm-a500s/"
+PRODUCT_URL = "/catalog/armatura/12-mm/12-mm-a500s/"
 FETCH = {"X-Requested-With": "fetch"}
 
 

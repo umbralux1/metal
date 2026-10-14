@@ -4,19 +4,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog import repository as repo
 from app.catalog.calculator import CalcError, calculate, default_input, parse_input
+from app.catalog.landings import product_seo_text
 from app.catalog.models import Category, FilterLanding, Product
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.templating import templates
 from app.seo import jsonld
-from app.seo.meta import PageMeta, absolute, category_meta, city_prep, landing_meta, product_meta, robots_for
+from app.seo.meta import (
+    PageMeta,
+    absolute,
+    category_meta,
+    city_prep,
+    landing_meta,
+    piece_price_kop,
+    product_meta,
+    robots_for,
+)
 
 router = APIRouter()
 
 CATALOG_ROOT = ("Каталог", "/catalog/")
 
 
-def _crumbs(categories: list[Category], tail: tuple[str, str] | None = None) -> list[tuple[str, str]]:
+def _crumbs(categories: list[Category | FilterLanding], tail: tuple[str, str] | None = None) -> list[tuple[str, str]]:
     items = [("Главная", "/"), CATALOG_ROOT] + [(c.name, c.url) for c in categories]
     return items + ([tail] if tail else [])
 
@@ -109,7 +119,7 @@ async def _render_landing(request: Request, session: AsyncSession, landing: Filt
     if page > products.pages:
         raise HTTPException(status_code=404)
     min_kop = await repo.min_price_kop(session, category.path, filters=landing.filters)
-    crumbs = _crumbs(await repo.breadcrumb_categories(session, category.path), (landing.name, landing.url))
+    crumbs = _crumbs(await repo.breadcrumb_nodes(session, category.path), (landing.name, landing.url))
     siblings = [item for item in await repo.category_landings(session, category) if item.id != landing.id]
     context = {
         "meta": landing_meta(request, landing, min_kop),
@@ -154,11 +164,22 @@ async def calc_partial(request: Request, product_id: int, session: AsyncSession 
 
 
 async def _render_product(request: Request, session: AsyncSession, product: Product):
-    category_path = product.path.rsplit("/", 1)[0]
-    crumbs = _crumbs(await repo.breadcrumb_categories(session, category_path), (product.name, product.url))
+    parent_path = product.path.rsplit("/", 1)[0]
+    crumbs = _crumbs(await repo.breadcrumb_nodes(session, parent_path), (product.name, product.url))
+    size = await repo.size_landing(session, product)
+    # Соседние размеры — посадочные того же раздела, что и посадочная товара
+    neighbour_category = size.category if size else product.category
+    neighbours = [
+        item for item in await repo.category_landings(session, neighbour_category) if not size or item.id != size.id
+    ]
     context = {
         "meta": product_meta(request, product),
         "product": product,
+        "size": size,
+        "same_size": await repo.same_size_products(session, size, product) if size else [],
+        "neighbours": neighbours,
+        "piece_kop": piece_price_kop(product),
+        "auto_text": None if product.seo_text else product_seo_text(product),
         **_calc_context(product, request.query_params),
         "breadcrumbs": crumbs,
         "jsonld": [jsonld.to_script(jsonld.breadcrumbs(crumbs)), jsonld.to_script(jsonld.product(product))],

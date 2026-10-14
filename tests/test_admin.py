@@ -118,19 +118,20 @@ async def test_create_category_product_and_rename_with_redirects(admin):
     )
     assert r.status_code == 302, r.text[:500]
     product = await get_one(Product, id=product.id)
-    assert product.path == "ugolok/ugolok-50x50x5"
+    # Раздел попал под правило «Уголок»: slug товара стал коротким, как у остальных товаров с размером
+    assert product.path == "ugolok/50x50x5"
     landing = await get_one(FilterLanding, name="Уголок 50х50")
     assert landing.path == "ugolok/50x50"
 
     async with new_client() as site:
         for old, new in [
             ("/catalog/ugolok-stalnoy/", "/catalog/ugolok/"),
-            ("/catalog/ugolok-stalnoy/ugolok-50x50x5/", "/catalog/ugolok/ugolok-50x50x5/"),
+            ("/catalog/ugolok-stalnoy/ugolok-50x50x5/", "/catalog/ugolok/50x50x5/"),
             ("/catalog/ugolok-stalnoy/50x50/", "/catalog/ugolok/50x50/"),
         ]:
             r = await site.get(old)
             assert (r.status_code, r.headers["location"]) == (301, new)
-        assert (await site.get("/catalog/ugolok/ugolok-50x50x5/")).status_code == 200
+        assert (await site.get("/catalog/ugolok/50x50x5/")).status_code == 200
 
     # Выключили товар — его адрес ведёт в раздел, а не в 404
     r = await admin.post(

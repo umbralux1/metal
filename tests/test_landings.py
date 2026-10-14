@@ -39,9 +39,10 @@ async def test_seed_creates_landings_for_sizes_with_two_products():
     # Все товары размера лежат в одном подразделе — посадочная там же
     tube = await _landing("truba-profilnaya/pryamougolnaya/40x20")
     assert tube.is_generated and tube.filters == {"width_mm": 40, "height_mm": 20}
-    # Размер с одним товаром посадочной не получает: его закрывает страница товара
-    assert await _landing("truba-profilnaya/pryamougolnaya/60x40") is None
-    assert await _landing("truba-profilnaya/kvadratnaya/20x20") is None
+    # Размер с одним товаром: посадочная есть (как родитель адреса товара), но закрыта от индекса —
+    # запрос закрывает карточка товара
+    single = await _landing("truba-profilnaya/pryamougolnaya/60x40")
+    assert single.is_generated and not single.is_indexable
 
 
 async def test_generated_page_meta_and_text(client):
@@ -68,7 +69,7 @@ async def test_category_links_to_generated_sizes(client):
     html = (await client.get("/catalog/armatura/")).text
     for size in ("8-mm", "10-mm", "12-mm"):
         assert f'href="/catalog/armatura/{size}/"' in html
-    assert html.index("/catalog/armatura/8-mm/") < html.index("/catalog/armatura/12-mm/")
+    assert html.index('href="/catalog/armatura/8-mm/"') < html.index('href="/catalog/armatura/12-mm/"')
 
 
 async def test_generator_is_idempotent_and_keeps_manual_landings():
@@ -83,7 +84,7 @@ async def test_generator_is_idempotent_and_keeps_manual_landings():
 
 async def test_size_disappears_landing_goes_noindex_then_returns():
     async with SessionLocal() as session:
-        product = await session.scalar(select(Product).where(Product.slug == "truba-profilnaya-40x20x1-5"))
+        product = await session.scalar(select(Product).where(Product.slug == "40x20x1-5"))
         product.is_active = False
         await session.commit()
         report = await generate_landings(session)
@@ -91,7 +92,7 @@ async def test_size_disappears_landing_goes_noindex_then_returns():
     assert not (await _landing("truba-profilnaya/pryamougolnaya/40x20")).is_indexable
 
     async with SessionLocal() as session:
-        product = await session.scalar(select(Product).where(Product.slug == "truba-profilnaya-40x20x1-5"))
+        product = await session.scalar(select(Product).where(Product.slug == "40x20x1-5"))
         product.is_active = True
         await session.commit()
         await generate_landings(session)
@@ -112,3 +113,51 @@ def test_long_title_drops_tail():
 
     texts = build_texts(rule, (Decimal("159"),), [P()])
     assert texts.title == "Труба электросварная прямошовная 159 мм купить в Москве {price}"
+
+
+async def test_products_live_inside_size_landing():
+    """Товар размера лежит внутри посадочной: …/kvadratnaya/40x40/40x40x2/, slug — без названия раздела."""
+    async with SessionLocal() as session:
+        paths = set(await session.scalars(select(Product.path)))
+    assert "truba-profilnaya/kvadratnaya/40x40/40x40x2" in paths
+    assert "truba-profilnaya/pryamougolnaya/60x40/60x40x2" in paths  # одна толщина — родитель закрыт от индекса
+    assert "armatura/12-mm/12-mm-a500s" in paths  # выше подраздела А500С: размер объединяет обе марки
+
+
+async def test_category_lists_products_by_category_not_url(client):
+    """Подраздел «А500С» показывает свои товары, хотя их адреса лежат в посадочных размера."""
+    html = (await client.get("/catalog/armatura/a500c/")).text
+    table = html.split('class="products"', 1)[1].split("</table>", 1)[0]
+    assert "12-mm-a500s" in table and "12-mm-a1" not in table
+
+
+async def test_old_long_slug_moves_with_redirect():
+    """Товар со старым адресом (как на Render до обновления) переезжает в посадочную, со старого — 301."""
+    async with SessionLocal() as session:
+        product = await session.scalar(select(Product).where(Product.slug == "20x20x2"))
+        product.slug = "truba-profilnaya-20x20x2"
+        product.path = "truba-profilnaya/kvadratnaya/truba-profilnaya-20x20x2"
+        await session.commit()
+        report = await generate_landings(session)
+    assert "truba-profilnaya/kvadratnaya/20x20/20x20x2" in report.moved
+    from tests.test_admin import new_client
+
+    async with new_client() as site:
+        r = await site.get("/catalog/truba-profilnaya/kvadratnaya/truba-profilnaya-20x20x2/")
+        assert (r.status_code, r.headers["location"]) == (301, "/catalog/truba-profilnaya/kvadratnaya/20x20/20x20x2/")
+
+
+async def test_product_card_seo_blocks(client):
+    r = await client.get("/catalog/truba-profilnaya/pryamougolnaya/40x20/40x20x2/")
+    assert r.status_code == 200
+    page = PageInfo(r.text)
+    assert page.title == f"Труба профильная прямоугольная 40х20х2 купить в Москве — цена 149{RUB}/м"
+    assert page.description.startswith(f"Труба профильная прямоугольная 40х20х2: 149{RUB}/м, 6 м — 894{RUB}.")
+    html = r.text
+    # Другие толщины того же размера и соседние размеры
+    assert 'href="/catalog/truba-profilnaya/pryamougolnaya/40x20/40x20x1-5/"' in html
+    assert "Труба профильная 40х20: другие варианты" in html
+    assert 'href="/catalog/truba-profilnaya/pryamougolnaya/40x20/"' in html
+    # Текст из данных товара и цена за штуку
+    assert "Вес 1 метра — 1,68 кг, в тонне около 595 м." in html
+    assert f"894{RUB} за штуку 6 м" in html

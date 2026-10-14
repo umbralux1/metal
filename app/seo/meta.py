@@ -5,7 +5,8 @@ from dataclasses import dataclass
 
 from starlette.requests import Request
 
-from app.catalog.models import Category, FilterLanding, Product
+from app.catalog.landing_rules import display_name
+from app.catalog.models import Category, FilterLanding, Product, Unit
 from app.core.config import settings
 from app.core.templating import format_rub
 
@@ -79,19 +80,50 @@ def landing_meta(request: Request, landing: FilterLanding, min_kop: int | None) 
     )
 
 
+def piece_price_kop(product: Product) -> int | None:
+    """Цена одной штуки стандартной длины: цена метра × длина (труба 6 м, пруток 11,7 м)."""
+    meter = product.price_for(Unit.METER)
+    if meter and product.length_m:
+        return round(meter.amount_kop * float(product.length_m))
+    return None
+
+
 def product_meta(request: Request, product: Product) -> PageMeta:
+    """«Труба профильная квадратная 20х20х2 купить в Москве — цена 98 ₽/м»: товар, синоним раздела,
+    «купить», город и цена за единицу — в той форме, в какой это ищут."""
     s = settings
+    category_path = product.category.path if product.category else ""
+    shown = display_name(product.name, category_path)
     price = product.base_price
     price_part = f" — цена {format_rub(price.amount_kop)}/{price.unit.label}" if price else ""
+    title = f"{shown} купить в {city_prep()}{price_part}"
+    if len(title) > 75:
+        title = f"{product.name} купить в {city_prep()}{price_part}"
+
+    offers = []
+    for pr in sorted(product.prices, key=lambda x: x.unit != product.base_unit):
+        offers.append(f"{format_rub(pr.amount_kop)}/{pr.unit.label}")
+    piece = piece_price_kop(product)
+    if piece:
+        offers.append(f"{num_ru(product.length_m)} м — {format_rub(piece)}")
+    stock = "В наличии на складе" if product.in_stock else "Под заказ"
+    description = (
+        f"{shown}: {', '.join(offers)}. {stock}. " if offers else f"{shown}. {stock}. "
+    ) + f"Продаём от 1 шт., режем в размер, доставка по {city_dat()} и области. ☎ {s.phone}"
     return PageMeta(
-        title=product.title or f"{product.name}{price_part}, в наличии | {s.site_name}",
-        description=product.description
-        or f"{product.name}{price_part}. {'В наличии. ' if product.in_stock else ''}"
-        f"Доставка по {city_dat()} и области, резка в размер. ☎ {s.phone}",
+        title=with_price(product.title, price.amount_kop if price else None) if product.title else title,
+        description=product.description or description,
         h1=product.h1 or product.name,
         canonical=absolute(product.url),
         robots=robots_for(request),
     )
+
+
+def num_ru(value) -> str:
+    """6.000 → «6», 11.700 → «11,7»."""
+    from decimal import Decimal
+
+    return format(Decimal(str(value)).normalize(), "f").replace(".", ",")
 
 
 def city_prep() -> str:

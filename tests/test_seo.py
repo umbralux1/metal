@@ -37,8 +37,8 @@ async def test_landing_filters_products_and_builds_title(client):
     assert page.h1 == ["Арматура 12 мм"]
     assert "от 43,25 ₽" in page.title
     table = products_table(r.text)
-    assert "armatura-12-mm-a500s" in table and "armatura-12-mm-a1" in table
-    assert "armatura-10-mm" not in table
+    assert "12-mm-a500s" in table and "12-mm-a1" in table
+    assert "10-mm-a" not in table
 
 
 async def test_landing_by_two_dimensions(client):
@@ -56,7 +56,7 @@ async def test_non_indexable_landing(client):
 
 
 async def test_product_page_jsonld(client):
-    r = await client.get("/catalog/armatura/a500c/armatura-12-mm-a500s/")
+    r = await client.get("/catalog/armatura/12-mm/12-mm-a500s/")
     assert r.status_code == 200
     page = PageInfo(r.text)
     product = next(b for b in page.jsonld if b["@type"] == "Product")
@@ -65,7 +65,8 @@ async def test_product_page_jsonld(client):
     assert product["offers"]["availability"].endswith("InStock")
     crumbs = next(b for b in page.jsonld if b["@type"] == "BreadcrumbList")
     names = [i["name"] for i in crumbs["itemListElement"]]
-    assert names == ["Главная", "Каталог", "Арматура", "Арматура А500С", "Арматура 12 мм А500С"]
+    # Товар лежит внутри посадочной размера — она тоже в крошках
+    assert names == ["Главная", "Каталог", "Арматура", "Арматура 12 мм", "Арматура 12 мм А500С"]
 
 
 @pytest.mark.parametrize(
@@ -94,7 +95,7 @@ async def test_sort_and_pagination_are_noindex(client):
 async def test_404(client):
     assert (await client.get("/catalog/net-takogo/")).status_code == 404
     assert (await client.get("/catalog/armatura/?page=99")).status_code == 404
-    r = await client.get("/catalog/armatura/a500c/armatura-12-mm-a500s/?page=2")
+    r = await client.get("/catalog/armatura/12-mm/12-mm-a500s/?page=2")
     assert r.status_code == 404
 
 
@@ -176,7 +177,7 @@ def test_iso_icons_cover_brief_categories():
 
 
 async def test_product_page_has_section_drawing(client):
-    r = await client.get("/catalog/truba-profilnaya/kvadratnaya/truba-profilnaya-40x40x2/")
+    r = await client.get("/catalog/truba-profilnaya/kvadratnaya/40x40/40x40x2/")
     assert 'class="section-drawing"' in r.text
     assert "t = 2" in r.text
 
