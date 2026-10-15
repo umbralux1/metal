@@ -32,7 +32,16 @@
         </span>
         <span class="brand-name">{{ settings.site_name }}</span>
       </a>
-      {% if nav %}
+      {% set on_home = request.url.path == "/" %}
+      {% if nav and on_home %}
+      {# На главной каталог уже развёрнут на странице — кнопка ведёт к нему, а не открывает второй такой же список #}
+      <div class="catalog-dd">
+        <a class="catalog-btn" href="#catalog-menu" data-scroll-to-catalog>
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path class="i-open" d="M4 7h16M4 12h16M4 17h16"/></svg>
+          <span>Каталог</span>
+        </a>
+      </div>
+      {% elif nav %}
       <details class="catalog-dd">
         <summary class="catalog-btn">
           <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path class="i-open" d="M4 7h16M4 12h16M4 17h16"/><path class="i-close" d="M6 6l12 12M18 6L6 18"/></svg>
@@ -113,7 +122,7 @@
     {% if settings.telegram %}<a href="https://t.me/{{ settings.telegram }}" rel="noopener">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 4.5L3.5 11l6 2 2 6 3-4 4 3z"/></svg>
       Telegram</a>{% endif %}
-    <a href="/catalog/">
+    <a href="{{ '#catalog-menu' if on_home and nav else '/catalog/' }}"{% if on_home and nav %} data-scroll-to-catalog{% endif %}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>
       Каталог
     </a>
@@ -124,6 +133,24 @@
   </nav>
   <script src="{{ static_url('js/suggest.js') }}" defer></script>
   <script>
+    // Главная: «Каталог» плавно ведёт к списку на странице и коротко подсвечивает его
+    (function () {
+      var menu = document.getElementById("catalog-menu");
+      if (!menu) return;
+      var still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      document.querySelectorAll("[data-scroll-to-catalog]").forEach(function (link) {
+        link.addEventListener("click", function (e) {
+          e.preventDefault();
+          var box = menu.getBoundingClientRect();
+          var visible = box.top >= 0 && box.top < window.innerHeight * 0.6;
+          if (!visible) menu.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
+          menu.focus({ preventScroll: true });
+          menu.classList.remove("is-highlighted");
+          void menu.offsetWidth;  // перезапуск подсветки при повторном нажатии
+          menu.classList.add("is-highlighted");
+        });
+      });
+    })();
     // Меню «Каталог»: закрыть по клику мимо и по Esc
     (function () {
       var dd = document.querySelector(".catalog-dd");

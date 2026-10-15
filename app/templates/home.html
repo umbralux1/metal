@@ -3,7 +3,7 @@
 <div class="home-top">
   <h1 class="home-title">{{ meta.h1 }}</h1>
   {% if request.state.nav %}
-  <nav class="home-menu" aria-label="Каталог">
+  <nav class="home-menu" id="catalog-menu" tabindex="-1" aria-label="Каталог">
     {% with items = request.state.nav %}{% include "catalog/_menu.html" %}{% endwith %}
   </nav>
   {% endif %}

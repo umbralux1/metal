@@ -158,6 +158,8 @@ p { margin: 0 0 12px; }
   border-radius: var(--radius-m); background: var(--ink); color: #fff; font-weight: 600; cursor: pointer; user-select: none;
 }
 .catalog-btn::-webkit-details-marker { display: none; }
+a.catalog-btn { text-decoration: none; color: #fff; }
+a.catalog-btn:hover { color: #fff; }
 .catalog-btn:hover { background: #2a3843; }
 .catalog-btn svg { width: 20px; height: 20px; }
 .catalog-btn .i-close, .catalog-dd[open] .catalog-btn .i-open { display: none; }
@@ -339,7 +341,12 @@ p { margin: 0 0 12px; }
   grid-template-rows: auto 1fr; gap: 0 40px; padding-top: 28px; align-items: start;
 }
 .home-title { grid-area: title; font-size: 40px; letter-spacing: -0.025em; margin: 18px 0 12px; max-width: 720px; }
-.home-menu { grid-area: menu; margin: 0; }
+.home-menu { grid-area: menu; margin: 0; scroll-margin-top: 16px; outline: none; }
+.home-menu.is-highlighted { animation: catalog-flash 1.4s ease-out; }
+@keyframes catalog-flash {
+  0%, 35% { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+  100% { border-color: var(--line-soft); box-shadow: 0 0 0 0 transparent; }
+}
 .home-intro { grid-area: intro; }
 .home-intro .lead { margin-bottom: 24px; }
 .home-intro .promises { margin-top: 32px; }

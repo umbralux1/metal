@@ -192,3 +192,14 @@ async def test_head_requests(client, url):
 async def test_head_keeps_redirects(client):
     r = await client.head("/catalog/armatura")
     assert r.status_code == 301
+
+
+async def test_home_catalog_button_leads_to_on_page_list(client):
+    """На главной кнопка «Каталог» не открывает второй такой же список, а ведёт к каталогу на странице."""
+    home = (await client.get("/")).text
+    assert 'id="catalog-menu"' in home
+    assert 'class="catalog-btn" href="#catalog-menu"' in home and 'class="catalog-panel"' not in home
+    assert home.count('href="#catalog-menu"') == 2  # кнопка в шапке и «Каталог» в нижней панели на телефоне
+    # На остальных страницах — обычное выпадающее меню
+    other = (await client.get("/catalog/armatura/")).text
+    assert 'class="catalog-panel"' in other and 'href="#catalog-menu"' not in other
