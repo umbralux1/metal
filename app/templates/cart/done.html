@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ meta.h1 }}</h1>
+<div class="lead-done" role="status">
+  <p><strong>Заказ №{{ lead.id }} принят — {{ lead.calc.total_kop | rub }}.</strong></p>
+  <p>Перезвоним в течение 15 минут в рабочее время, подтвердим наличие и стоимость доставки. Если срочно — <a href="{{ phone_href(settings.phone) }}">{{ settings.phone }}</a>.</p>
+</div>
+<ul class="order-items">
+  {% for item in lead.calc['items'] %}
+  <li><a href="{{ item.url }}">{{ item.name }}</a><span>{{ item.total_kop | rub }}</span></li>
+  {% endfor %}
+</ul>
+<p><a href="/catalog/">Вернуться в каталог</a></p>
+{% endblock %}

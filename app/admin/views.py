@@ -3,6 +3,7 @@
 from typing import Any
 
 from fastapi import FastAPI
+from markupsafe import Markup
 from sqladmin import Admin, ModelView, action
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
@@ -368,6 +369,46 @@ class RedirectAdmin(ModelView, model=Redirect):
 LEAD_STATUSES = [("new", "Новая"), ("in_progress", "В работе"), ("done", "Выполнена"), ("spam", "Спам")]
 
 
+def _lead_calc_html(calc: dict) -> Markup:
+    """Расчёт заявки для карточки в админке: позиции корзины списком или итог одного товара."""
+    if calc.get("kind") != "cart":
+        total = calc.get("total_kop")
+        parts = [
+            f"{calc.get('pieces')} шт." if calc.get("pieces") else "",
+            f"{calc.get('meters')} м" if calc.get("meters") else "",
+        ]
+        details = ", ".join(p for p in parts if p)
+        return Markup("{} {}").format(
+            format_rub(total) if total is not None else "—", f"({details})" if details else ""
+        )
+    rows = Markup("").join(
+        Markup(
+            "<tr><td><a href='{}' target='_blank'>{}</a></td><td>{}</td><td>{}</td>"
+            "<td style='text-align:right'>{}</td></tr>"
+        ).format(
+            item.get("url", ""),
+            item.get("name", ""),
+            ", ".join(
+                x
+                for x in (
+                    f"{item.get('pieces')} шт." if item.get("pieces") else "",
+                    f"{item.get('meters')} м" if item.get("meters") else "",
+                )
+                if x
+            ),
+            f"резка {item.get('cut_count')} × {item.get('cut_len')} м" if item.get("cut") else "",
+            format_rub(item.get("total_kop")),
+        )
+        for item in calc.get("items", [])
+    )
+    delivery = "Доставка: " + calc.get("address", "") if calc.get("delivery") == "delivery" else "Самовывоз"
+    return Markup(
+        "<table class='table table-sm'><thead><tr><th>Товар</th><th>Количество</th><th>Резка</th>"
+        "<th>Сумма</th></tr></thead>"
+        "<tbody>{}</tbody></table><p><strong>Итого: {}</strong> · {}</p>"
+    ).format(rows, format_rub(calc.get("total_kop")), delivery)
+
+
 class LeadAdmin(ModelView, model=Lead):
     name = "Заявка"
     name_plural = "Заявки"
@@ -406,6 +447,7 @@ class LeadAdmin(ModelView, model=Lead):
     }
     column_formatters_detail = {
         Lead.status: lambda m, a: dict(LEAD_STATUSES).get(m.status, m.status),
+        Lead.calc: lambda m, a: _lead_calc_html(m.calc or {}),
     }
     can_create = False
     form_columns = [Lead.status, Lead.comment]

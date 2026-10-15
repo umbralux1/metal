@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ meta.h1 }}</h1>
+{% if not lines %}
+<div class="empty cart-empty">
+  <p>В корзине пока ничего нет.</p>
+  <p><a class="btn" href="/catalog/">Перейти в каталог</a></p>
+</div>
+{% else %}
+<div class="cart">
+  <section class="cart-lines" aria-label="Товары в корзине">
+    {% for line in lines %}
+    <article class="cart-line{% if line.error %} has-error{% endif %}">
+      <div class="cart-line-icon" aria-hidden="true">{{ category_icon(line.product.path.split('/')[0] if line.product else '') }}</div>
+      <div class="cart-line-main">
+        {% if line.product %}<a class="cart-line-name" href="{{ line.product.url }}">{{ line.product.name }}</a>
+        {% else %}<span class="cart-line-name">Товар снят с продажи</span>{% endif %}
+        {% if line.calc %}
+        <p class="cart-line-facts">
+          {% if line.calc.pieces is not none %}{{ line.calc.pieces }} шт.{% endif %}
+          {% if line.calc.meters is not none %} · {{ line.calc.meters | num }} м{% endif %}
+          {% if line.calc.weight_kg is not none %} · {{ line.calc.weight_kg | num }} кг{% endif %}
+          {% if line.calc.cuts %} · резка {{ line.item.cut_count }} × {{ line.item.cut_len }} м, {{ line.calc.cuts }} рез.{% endif %}
+        </p>
+        <p class="cart-line-price muted">по {{ line.calc.price_kop | rub }}/{{ line.calc.price_unit.label }}</p>
+        {% endif %}
+        {% if line.error %}<p class="calc-error" role="alert">{{ line.error }}</p>{% endif %}
+      </div>
+      <div class="cart-line-qty">
+        {% if line.product and not line.item.cut %}
+        <form method="post" action="/cart/update/" class="cart-qty-form">
+          <input type="hidden" name="index" value="{{ line.index }}">
+          <label class="visually-hidden" for="qty-{{ line.index }}">Количество, {{ 'шт.' if line.item.unit == 'pcs' else ('кг' if line.item.unit == 'kg' else 'м') }}</label>
+          <input id="qty-{{ line.index }}" name="qty" inputmode="decimal" autocomplete="off" value="{{ line.item.qty }}">
+          <span class="cart-qty-unit">{{ 'шт.' if line.item.unit == 'pcs' else ('кг' if line.item.unit == 'kg' else 'м') }}</span>
+          <button class="btn-link" type="submit">Пересчитать</button>
+        </form>
+        {% endif %}
+      </div>
+      <div class="cart-line-total">{% if line.calc %}{{ line.calc.total_kop | rub }}{% endif %}</div>
+      <form method="post" action="/cart/remove/" class="cart-remove">
+        <input type="hidden" name="index" value="{{ line.index }}">
+        <button type="submit" aria-label="Удалить {{ line.product.name if line.product else 'позицию' }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </form>
+    </article>
+    {% endfor %}
+  </section>
+
+  <aside class="cart-summary" aria-labelledby="checkout-title">
+    <div class="buy-card">
+      <p class="cart-total"><span>Итого</span><strong>{{ total_kop | rub }}</strong></p>
+      <p class="muted small">Доставку менеджер рассчитает по адресу и сообщит до оплаты.</p>
+      <h2 id="checkout-title">Оформление заказа</h2>
+      {% if error %}<p class="calc-error" role="alert">{{ error }}</p>{% endif %}
+      <form method="post" action="/cart/checkout/" class="checkout-form">
+        <fieldset class="delivery-choice">
+          <legend>Получение</legend>
+          {% for key, label in delivery_options.items() %}
+          <label class="check"><input type="radio" name="delivery" value="{{ key }}" {{ 'checked' if values.get('delivery') == key }}> {{ label }}</label>
+          {% endfor %}
+        </fieldset>
+        <label class="field address-field"><span>Адрес доставки</span>
+          <input name="address" autocomplete="street-address" placeholder="Город, улица, дом или участок" value="{{ values.get('address', '') }}">
+        </label>
+        <label class="field"><span>Телефон</span>
+          <input name="phone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="+7 916 123-45-67" value="{{ values.get('phone', '') }}">
+        </label>
+        <label class="field"><span>Имя</span>
+          <input name="name" autocomplete="given-name" value="{{ values.get('name', '') }}">
+        </label>
+        <label class="field"><span>Комментарий</span>
+          <input name="comment" placeholder="удобное время, подъезд для машины" value="{{ values.get('comment', '') }}">
+        </label>
+        <label class="hp" aria-hidden="true">Сайт <input name="website" tabindex="-1" autocomplete="off"></label>
+        <button class="btn" type="submit" {{ 'disabled' if has_errors }}>Оформить заказ</button>
+        <p class="muted small">Оплата после подтверждения заказа менеджером. Нажимая кнопку, вы соглашаетесь на обработку персональных данных.</p>
+      </form>
+    </div>
+  </aside>
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+  // Адрес нужен только для доставки
+  (function () {
+    var form = document.querySelector(".checkout-form");
+    if (!form) return;
+    var field = form.querySelector(".address-field");
+    var sync = function () {
+      var delivery = form.querySelector('input[name="delivery"]:checked');
+      field.hidden = delivery && delivery.value === "pickup";
+    };
+    form.addEventListener("change", sync);
+    sync();
+  })();
+</script>
+{% endblock %}

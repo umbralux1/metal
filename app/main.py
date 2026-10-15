@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.admin.views import setup_admin
+from app.cart.router import router as cart_router
 from app.catalog import repository as repo
 from app.catalog.router import router as catalog_router
 from app.core.config import settings
@@ -46,6 +47,7 @@ def create_app() -> FastAPI:
     app.include_router(catalog_router)
     app.include_router(seo_router)
     app.include_router(leads_router)
+    app.include_router(cart_router)
     setup_admin(app)
 
     @app.exception_handler(StarletteHTTPException)

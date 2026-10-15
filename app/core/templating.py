@@ -49,5 +49,14 @@ def _register_drawings() -> None:
 
 templates.env.globals["phone_href"] = _phone_href
 templates.env.globals["static_url"] = static_url
+
+
+def _cart_count(request) -> int:
+    from app.cart.store import count
+
+    return count(request)
+
+
+templates.env.globals["cart_count"] = _cart_count
 templates.env.globals["current_year"] = lambda: date.today().year
 _register_drawings()

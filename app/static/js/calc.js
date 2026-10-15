@@ -32,7 +32,33 @@
 
   form.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(recalc, 250); });
   form.addEventListener("change", (e) => { if (e.target.type !== "text") recalc(); });
-  form.addEventListener("submit", (e) => { e.preventDefault(); recalc(); });
+  // «В корзину»: та же форма расчёта, но POST /cart/add/ — без перезагрузки страницы
+  const cartStatus = form.querySelector("[data-cart-status]");
+  const addToCart = (button) => {
+    button.disabled = true;
+    fetch(button.formAction, { method: "POST", body: new FormData(form), headers })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cartStatus) return;
+        cartStatus.hidden = false;
+        if (data.ok) {
+          document.querySelectorAll("[data-cart-count]").forEach((el) => { el.textContent = data.count; el.hidden = false; });
+          cartStatus.className = "cart-added";
+          cartStatus.innerHTML = 'Добавлено в корзину · <a href="/cart/">Перейти в корзину</a>';
+        } else {
+          cartStatus.className = "calc-error";
+          cartStatus.textContent = data.error || "Не получилось добавить, попробуйте ещё раз";
+        }
+      })
+      .catch(() => {})
+      .finally(() => { button.disabled = false; });
+  };
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (e.submitter && e.submitter.hasAttribute("data-cart-add")) addToCart(e.submitter);
+    else recalc();
+  });
   syncCut();
 
   out.addEventListener("submit", (e) => {
