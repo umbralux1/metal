@@ -1,0 +1,19 @@
+{# Контакты: значки мессенджеров и кнопки — для шапки и страницы /contacts/ #}
+{% macro messenger_icon(kind) -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  {%- if kind == "telegram" %}<path d="M20.5 4.5L3.5 11l6 2 2 6 3-4 4 3z"/><path d="M9.5 13l6-4.5"/>
+  {%- elif kind == "whatsapp" %}<path d="M4 20l1.3-4A8 8 0 1 1 8 18.7z"/><path d="M9.5 9.5c0 2.5 2.5 5 5 5l1-1.5-1.8-.9-.8.8a4 4 0 0 1-1.8-1.8l.8-.8-.9-1.8z"/>
+  {%- else %}<path d="M5 5h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H10l-4 3v-3H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/><path d="M8 13V9l2 2.5L12 9v4M14.5 13l2-4 2 4M15.2 11.8h2.6"/>
+  {%- endif %}
+</svg>
+{%- endmacro %}
+
+{% macro messenger_buttons(items) -%}
+{% if items %}
+<div class="messengers">
+  {% for kind, name, url in items %}
+  <a class="messenger messenger-{{ kind }}" href="{{ url }}" target="_blank" rel="noopener">{{ messenger_icon(kind) }}<span>{{ name }}</span></a>
+  {% endfor %}
+</div>
+{% endif %}
+{%- endmacro %}

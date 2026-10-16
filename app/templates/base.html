@@ -22,6 +22,7 @@
   {% endfor %}
 </head>
 {% set nav = request.state.nav or [] %}
+{% import "_contacts.html" as contacts %}
 <body>
   <a class="skip-link" href="#main">К содержанию</a>
   {# На странице результатов своего поля нет — там поиск в шапке открыт сразу, в том числе на телефоне #}
@@ -63,6 +64,27 @@
       <div class="header-contact">
         <a class="phone" href="{{ phone_href(settings.phone) }}">{{ settings.phone }}</a>
         <span class="hours">{{ settings.work_hours }}</span>
+        {# Стрелка у телефона: все телефоны, мессенджеры, почта и часы. <details> работает и без JavaScript #}
+        <details class="contact-dd">
+          <summary class="contact-toggle" aria-label="Все контакты" title="Все контакты">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <div class="contact-panel">
+            <p class="contact-title">Заказ и консультация</p>
+            <ul class="contact-phones">
+              {% for p in settings.phones %}<li><a href="{{ phone_href(p) }}">{{ p }}</a></li>{% endfor %}
+            </ul>
+            {{ contacts.messenger_buttons(settings.messengers) }}
+            <dl class="contact-facts">
+              <dt>Почта</dt>
+              <dd>{% for e in settings.emails %}<a href="mailto:{{ e }}">{{ e }}</a>{% endfor %}</dd>
+              <dt>Часы работы</dt>
+              <dd>{{ settings.work_hours }}</dd>
+              {% if settings.address %}<dt>Адрес склада</dt><dd>{{ settings.address }}</dd>{% endif %}
+            </dl>
+            <a class="contact-more" href="/contacts/">Контакты и схема проезда</a>
+          </div>
+        </details>
       </div>
       {# Телефон: поиск свёрнут в лупу. Без JavaScript ссылка просто ведёт на страницу поиска #}
       <a class="search-toggle" href="/search/" aria-controls="site-search" aria-expanded="false" aria-label="Поиск">
@@ -193,13 +215,11 @@
         }
       }, true);
     })();
-    // Меню «Каталог»: закрыть по клику мимо и по Esc
-    (function () {
-      var dd = document.querySelector(".catalog-dd");
-      if (!dd) return;
+    // Меню «Каталог» и список контактов: закрыть по клику мимо и по Esc
+    document.querySelectorAll("details.catalog-dd, details.contact-dd").forEach(function (dd) {
       document.addEventListener("click", function (e) { if (dd.open && !dd.contains(e.target)) dd.open = false; });
       document.addEventListener("keydown", function (e) { if (e.key === "Escape" && dd.open) { dd.open = false; dd.querySelector("summary").focus(); } });
-    })();
+    });
   </script>
   {% block scripts %}{% endblock %}
 </body>

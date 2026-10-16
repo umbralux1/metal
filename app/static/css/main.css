@@ -85,7 +85,54 @@ p { margin: 0 0 12px; }
 /* Лупа вместо поля — только на телефоне (см. @media 640px) */
 .search-toggle { display: none; }
 
-.header-contact { margin-left: auto; text-align: right; display: grid; flex: none; }
+.header-contact {
+  margin-left: auto; text-align: right; flex: none; position: relative;
+  display: grid; grid-template-columns: auto auto; column-gap: 2px; align-items: center;
+}
+.header-contact .phone { grid-column: 1; grid-row: 1; }
+.header-contact .hours { grid-column: 1; grid-row: 2; }
+
+/* Все контакты: стрелка у телефона и панель под ней */
+.contact-dd { grid-column: 2; grid-row: 1 / span 2; position: static; }
+.contact-toggle {
+  list-style: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px;
+  color: var(--muted); cursor: pointer;
+}
+.contact-toggle::-webkit-details-marker { display: none; }
+.contact-toggle:hover, .contact-dd[open] .contact-toggle { background: #f1f4f6; color: var(--ink); }
+.contact-toggle svg { width: 20px; height: 20px; transition: transform .15s; }
+.contact-dd[open] .contact-toggle svg { transform: rotate(180deg); }
+.contact-panel {
+  position: absolute; z-index: 30; top: calc(100% + 10px); right: 0; width: 380px; text-align: left;
+  background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius-m);
+  box-shadow: 0 18px 40px rgba(27, 38, 48, .14); padding: 18px 20px;
+}
+.contact-title { margin: 0 0 8px; font-size: 14px; color: var(--muted); }
+.contact-phones { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 2px; }
+.contact-phones a { display: block; padding: 3px 0; font-size: 19px; font-weight: 700; color: var(--ink); text-decoration: none; letter-spacing: -0.01em; }
+.contact-phones a:hover { color: var(--accent); }
+.contact-panel .messengers { margin-bottom: 14px; }
+.contact-facts { margin: 0 0 14px; display: grid; gap: 2px; font-size: 15px; }
+.contact-facts dt { font-size: 13px; color: var(--muted); margin-top: 8px; }
+.contact-facts dt:first-child { margin-top: 0; }
+.contact-facts dd { margin: 0; display: grid; }
+.contact-more { font-weight: 600; color: var(--accent); text-decoration: none; }
+.contact-more:hover { text-decoration: underline; }
+
+/* Кнопки мессенджеров */
+.messengers { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 6px; max-width: 360px; }
+.messenger {
+  display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 8px;
+  border: 1px solid var(--line); border-radius: var(--radius-m); color: var(--ink); text-decoration: none; font-weight: 600; font-size: 14px; white-space: nowrap;
+}
+.messenger:hover { border-color: currentColor; }
+.messenger svg { width: 20px; height: 20px; flex: none; }
+.messenger-telegram svg { color: #229ed9; }
+.messenger-whatsapp svg { color: #1fa855; }
+.messenger-max svg { color: #6b4de6; }
+.messenger-telegram:hover { color: #1a86b9; }
+.messenger-whatsapp:hover { color: #178a45; }
+.messenger-max:hover { color: #5a3fd0; }
 .phone { font-size: 19px; font-weight: 700; text-decoration: none; letter-spacing: -0.01em; }
 .hours { font-size: 13px; color: var(--muted); }
 
@@ -425,6 +472,9 @@ a.catalog-btn:hover { color: #fff; }
   .cat-menu .icon { width: 48px; height: 48px; }
   .catalog-dd { display: none; } /* на телефоне каталог — в нижней панели, вся ширина строки отдаётся поиску */
   /* Поиск свёрнут в лупу справа от телефона; по нажатию поле выезжает строкой под шапкой */
+  .header-contact { position: static; }
+  .contact-toggle { width: 30px; height: 36px; }
+  .contact-panel { left: 12px; right: 12px; width: auto; top: calc(100% - 4px); max-height: calc(100vh - 150px); overflow-y: auto; }
   .search-toggle {
     display: grid; place-items: center; flex: none; width: 44px; height: 44px; margin-right: -8px;
     border-radius: var(--radius-m); color: var(--ink);
@@ -479,8 +529,9 @@ a.catalog-btn:hover { color: #fff; }
   .phone { font-size: 14px; }
   .search-toggle { width: 40px; }
 }
-@media (max-width: 340px) {
-  .brand-name { display: none; } /* значок-логотип остаётся ссылкой на главную */
+@media (max-width: 420px) {
+  /* Номер со стрелкой и лупа важнее названия: значок-логотип остаётся ссылкой на главную */
+  .brand-name { display: none; }
 }
 
 @keyframes search-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }

@@ -1,15 +1,20 @@
 {% extends "base.html" %}
+{% import "_contacts.html" as contacts %}
 {% block content %}
 <h1>{{ meta.h1 }}</h1>
 <div class="contacts">
   <section class="contacts-info" aria-label="Как связаться">
     <dl>
-      <dt>Телефон</dt>
-      <dd><a class="contacts-phone" href="{{ phone_href(settings.phone) }}">{{ settings.phone }}</a></dd>
+      <dt>{{ "Телефоны" if settings.phones | length > 1 else "Телефон" }}</dt>
+      {% for p in settings.phones %}<dd><a class="contacts-phone" href="{{ phone_href(p) }}">{{ p }}</a></dd>{% endfor %}
+      {% if settings.messengers %}
+      <dt>Мессенджеры</dt>
+      <dd>{{ contacts.messenger_buttons(settings.messengers) }}</dd>
+      {% endif %}
       <dt>Часы работы</dt>
       <dd>{{ settings.work_hours }}</dd>
       <dt>Почта</dt>
-      <dd><a href="mailto:{{ settings.email }}">{{ settings.email }}</a></dd>
+      {% for e in settings.emails %}<dd><a href="mailto:{{ e }}">{{ e }}</a></dd>{% endfor %}
       <dt>Адрес склада</dt>
       <dd>{{ settings.address or settings.city }}</dd>
     </dl>

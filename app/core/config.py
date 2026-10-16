@@ -19,6 +19,14 @@ def env_files() -> tuple[str | Path, ...]:
     return (".env", RENDER_ENV_FILE) if os.environ.get("RENDER") else (".env",)
 
 
+def _split(value: str) -> list[str]:
+    return [item.strip() for item in value.replace(";", ",").split(",") if item.strip()]
+
+
+def _unique(items: list[str]) -> list[str]:
+    return [item for i, item in enumerate(items) if item and item not in items[:i]]
+
+
 class Settings(BaseSettings):
     """Настройки приложения. Читаются из переменных окружения и файлов из env_files()."""
 
@@ -39,6 +47,12 @@ class Settings(BaseSettings):
     address: str = ""  # адрес склада для подвала и контактов; пусто — не показываем
     whatsapp: str = ""  # номер цифрами, например 79160000000; пусто — кнопки нет
     telegram: str = ""  # имя пользователя или бота без @
+    # Список контактов в шапке (стрелка у телефона) и на /contacts/. Через запятую; пусто — только основной.
+    extra_phones: str = ""
+    extra_emails: str = ""
+    # У MAX нет ссылки по номеру, как wa.me: ссылку копируют в приложении (профиль → «Поделиться»).
+    # Целиком: https://max.ru/u/… (профиль) или https://max.ru/@имя (бот). Пусто — кнопки нет.
+    max_url: str = ""
 
     # Яндекс Карта на странице /contacts/. Координаты склада — из Яндекс Карт (клик по точке → «55.75, 37.62»).
     # Пусто — показываем карту города без метки.
@@ -65,6 +79,27 @@ class Settings(BaseSettings):
     # Калькулятор: цена одного реза и с какого веса действует цена за тонну
     cut_price_kop: int = 5000
     ton_price_from_kg: int = 1000
+
+    @property
+    def phones(self) -> list[str]:
+        """Основной телефон первым, затем дополнительные (без повторов)."""
+        return _unique([self.phone, *_split(self.extra_phones)])
+
+    @property
+    def emails(self) -> list[str]:
+        return _unique([self.email, *_split(self.extra_emails)])
+
+    @property
+    def messengers(self) -> list[tuple[str, str, str]]:
+        """(вид, название, ссылка) для заполненных мессенджеров — в порядке показа."""
+        items = []
+        if tg := self.telegram.strip().removeprefix("https://t.me/").removeprefix("@").strip("/"):
+            items.append(("telegram", "Telegram", f"https://t.me/{tg}"))
+        if wa := "".join(ch for ch in self.whatsapp if ch.isdigit()):
+            items.append(("whatsapp", "WhatsApp", f"https://wa.me/{wa}"))
+        if self.max_url.strip().startswith("https://max.ru/"):
+            items.append(("max", "MAX", self.max_url.strip()))
+        return items
 
     @field_validator("map_lat", "map_lon", mode="before")
     @classmethod
