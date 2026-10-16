@@ -7,10 +7,8 @@
     <dl>
       <dt>{{ "Телефоны" if settings.phones | length > 1 else "Телефон" }}</dt>
       {% for p in settings.phones %}<dd><a class="contacts-phone" href="{{ phone_href(p) }}">{{ p }}</a></dd>{% endfor %}
-      {% if settings.messengers %}
       <dt>Мессенджеры</dt>
-      <dd>{{ contacts.messenger_buttons(settings.messengers) }}</dd>
-      {% endif %}
+      <dd>{{ contacts.messenger_buttons(settings.messenger_slots) }}</dd>
       <dt>Часы работы</dt>
       <dd>{{ settings.work_hours }}</dd>
       <dt>Почта</dt>

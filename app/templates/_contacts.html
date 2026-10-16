@@ -8,12 +8,15 @@
 </svg>
 {%- endmacro %}
 
+{# Незаполненный мессенджер — серый значок без ссылки; ссылка из .env делает его кнопкой #}
 {% macro messenger_buttons(items) -%}
-{% if items %}
 <div class="messengers">
   {% for kind, name, url in items %}
+  {% if url %}
   <a class="messenger messenger-{{ kind }}" href="{{ url }}" target="_blank" rel="noopener">{{ messenger_icon(kind) }}<span>{{ name }}</span></a>
+  {% else %}
+  <span class="messenger messenger-{{ kind }} is-disabled" aria-disabled="true" title="{{ name }} скоро подключим">{{ messenger_icon(kind) }}<span>{{ name }}</span></span>
+  {% endif %}
   {% endfor %}
 </div>
-{% endif %}
 {%- endmacro %}

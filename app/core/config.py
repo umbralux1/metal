@@ -19,6 +19,9 @@ def env_files() -> tuple[str | Path, ...]:
     return (".env", RENDER_ENV_FILE) if os.environ.get("RENDER") else (".env",)
 
 
+MESSENGERS = (("telegram", "Telegram"), ("whatsapp", "WhatsApp"), ("max", "MAX"))
+
+
 def _split(value: str) -> list[str]:
     return [item.strip() for item in value.replace(";", ",").split(",") if item.strip()]
 
@@ -100,6 +103,12 @@ class Settings(BaseSettings):
         if self.max_url.strip().startswith("https://max.ru/"):
             items.append(("max", "MAX", self.max_url.strip()))
         return items
+
+    @property
+    def messenger_slots(self) -> list[tuple[str, str, str]]:
+        """Все мессенджеры для показа: незаполненные — с пустой ссылкой (значок виден, но неактивен)."""
+        links = {kind: url for kind, _name, url in self.messengers}
+        return [(kind, name, links.get(kind, "")) for kind, name in MESSENGERS]
 
     @field_validator("map_lat", "map_lon", mode="before")
     @classmethod

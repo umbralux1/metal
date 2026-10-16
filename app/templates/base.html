@@ -74,7 +74,7 @@
             <ul class="contact-phones">
               {% for p in settings.phones %}<li><a href="{{ phone_href(p) }}">{{ p }}</a></li>{% endfor %}
             </ul>
-            {{ contacts.messenger_buttons(settings.messengers) }}
+            {{ contacts.messenger_buttons(settings.messenger_slots) }}
             <dl class="contact-facts">
               <dt>Почта</dt>
               <dd>{% for e in settings.emails %}<a href="mailto:{{ e }}">{{ e }}</a>{% endfor %}</dd>

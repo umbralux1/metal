@@ -27,7 +27,7 @@ def test_messengers_links():
         ("whatsapp", "WhatsApp", "https://wa.me/79160000000"),
         ("max", "MAX", "https://max.ru/u/abc123"),
     ]
-    # Пусто или чужой адрес вместо ссылки MAX — кнопки нет
+    # Пусто или чужой адрес вместо ссылки MAX — активной кнопки нет
     assert _settings(max_url="max.ru/u/abc").messengers == []
     assert _settings().messengers == []
 
@@ -43,7 +43,9 @@ async def test_header_dropdown_lists_all_contacts(client, monkeypatch):
     body = panel.group(1)
     assert 'href="tel:+79162222222"' in body and "mailto:zakaz@metall.ru" in body
     assert 'href="https://t.me/metall"' in body and 'href="https://max.ru/u/abc123"' in body
-    assert "wa.me" not in body  # WhatsApp не задан — кнопки нет
+    # WhatsApp не задан — значок есть, но без ссылки
+    assert "wa.me" not in body
+    assert re.search(r'<span class="messenger messenger-whatsapp is-disabled" aria-disabled="true"', body)
     assert 'href="/contacts/"' in body
 
 
@@ -54,3 +56,12 @@ async def test_contacts_page_lists_extra_contacts(client, monkeypatch):
     main = html.split('<main id="main"', 1)[1]
     assert "Телефоны" in main and 'href="tel:+79162222222"' in main
     assert 'href="https://wa.me/79160000000"' in main
+
+
+def test_messenger_slots_always_list_all_three():
+    s = _settings(telegram="metall")
+    assert s.messenger_slots == [
+        ("telegram", "Telegram", "https://t.me/metall"),
+        ("whatsapp", "WhatsApp", ""),
+        ("max", "MAX", ""),
+    ]

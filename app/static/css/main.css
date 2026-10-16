@@ -133,6 +133,9 @@ p { margin: 0 0 12px; }
 .messenger-telegram:hover { color: #1a86b9; }
 .messenger-whatsapp:hover { color: #178a45; }
 .messenger-max:hover { color: #5a3fd0; }
+.messenger.is-disabled { color: #9aa6af; border-style: dashed; cursor: default; }
+.messenger.is-disabled svg { color: inherit; opacity: .7; }
+.messenger.is-disabled:hover { color: #9aa6af; border-color: var(--line); }
 .phone { font-size: 19px; font-weight: 700; text-decoration: none; letter-spacing: -0.01em; }
 .hours { font-size: 13px; color: var(--muted); }
 
