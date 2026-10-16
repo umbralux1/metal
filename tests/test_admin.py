@@ -251,3 +251,67 @@ async def test_generate_landings_action_and_manual_edit(admin):
     async with new_client() as site:
         html = (await site.get("/catalog/truba-profilnaya/kvadratnaya/40x40/")).text
     assert "<title>Своя труба 40х40 от 195\u00a0₽</title>" in html
+
+
+async def test_product_prices_in_rubles_in_product_form(admin):
+    """Цены вводятся прямо в форме товара в рублях; в базе — копейки в таблице prices."""
+    from app.catalog.models import Price
+
+    r = await admin.post(
+        "/admin/category/create", data={"name": "Квадрат тест", "slug": "kvadrat-test", "sort": "90", "is_active": "y"}
+    )
+    cat = await get_one(Category, slug="kvadrat-test")
+    base = {
+        "name": "Квадрат 10 мм тест",
+        "slug": "",
+        "category": str(cat.id),
+        "base_unit": "m",
+        "in_stock": "y",
+        "is_active": "y",
+        "attrs": "{}",
+    }
+    r = await admin.post("/admin/product/create", data={**base, "price_m": "43,25", "price_t": "48 700"})
+    assert r.status_code == 302, r.text[:500]
+    product = await get_one(Product, name="Квадрат 10 мм тест")
+    async with SessionLocal() as s:
+        prices = {
+            p.unit.value: p.amount_kop for p in await s.scalars(select(Price).where(Price.product_id == product.id))
+        }
+    assert prices == {"m": 4325, "t": 4870000}
+
+    # В форме редактирования — рубли, поля цен сразу после единицы продажи
+    form = (await admin.get(f"/admin/product/edit/{product.id}")).text
+    assert 'name="price_m"' in form and 'value="43,25"' in form and 'value="48700"' in form
+    assert form.index('name="base_unit"') < form.index('name="price_m"') < form.index('name="in_stock"')
+
+    # Правка цены и удаление цены за тонну пустым полем
+    r = await admin.post(f"/admin/product/edit/{product.id}", data={**base, "price_m": "45.10", "price_t": ""})
+    assert r.status_code == 302, r.text[:500]
+    async with SessionLocal() as s:
+        prices = {
+            p.unit.value: p.amount_kop for p in await s.scalars(select(Price).where(Price.product_id == product.id))
+        }
+    assert prices == {"m": 4510}
+
+    # Неверная цена — понятная ошибка, ничего не сохраняется
+    r = await admin.post(f"/admin/product/edit/{product.id}", data={**base, "price_m": "сорок"})
+    assert r.status_code != 302 and "введите число" in r.text
+    r = await admin.post(f"/admin/product/edit/{product.id}", data={**base, "price_m": "1,234"})
+    assert "не больше двух знаков" in r.text
+
+    # В списке товаров видна цена в рублях
+    listing = (await admin.get("/admin/product/list?search=Квадрат 10 мм тест")).text
+    assert "45,10 ₽/м" in listing
+
+
+def test_rub_to_kop():
+    import pytest
+
+    from app.admin.views import kop_to_rub, rub_to_kop
+
+    assert rub_to_kop("43,25") == 4325 and rub_to_kop("48 700") == 4870000 and rub_to_kop("") is None
+    assert rub_to_kop("5 299 ₽") == 529900
+    assert kop_to_rub(4325) == "43,25" and kop_to_rub(4870000) == "48700"
+    for bad in ("0", "-5", "abc", "1e3x"):
+        with pytest.raises(ValueError):
+            rub_to_kop(bad)

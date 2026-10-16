@@ -124,6 +124,14 @@ class Product(TimestampMixin, SeoMixin, Base):
         return next((p for p in self.prices if p.unit == unit), None)
 
     @property
+    def price_summary(self) -> str:
+        """«43,25 ₽/м, 48 700 ₽/т» — для списка товаров в админке, основная единица первой."""
+        from app.core.templating import format_rub
+
+        ordered = sorted(self.prices, key=lambda p: p.unit != self.base_unit)
+        return ", ".join(f"{format_rub(p.amount_kop)}/{p.unit.label}" for p in ordered) or "—"
+
+    @property
     def base_price(self) -> "Price | None":
         return self.price_for(self.base_unit)
 

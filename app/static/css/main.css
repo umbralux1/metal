@@ -421,7 +421,7 @@ a.catalog-btn:hover { color: #fff; }
   h1 { font-size: 26px; }
   .cat-menu a { grid-template-columns: 48px minmax(0, 1fr) 18px; gap: 14px; min-height: 64px; padding: 6px 8px; font-size: 17px; }
   .cat-menu .icon { width: 48px; height: 48px; }
-  .catalog-btn span { display: none; }
+  .catalog-dd { display: none; } /* на телефоне каталог — в нижней панели, вся ширина строки отдаётся поиску */
   .lead { font-size: 17px; }
   .search-lg input { padding-right: 16px; }
   .search-lg button { display: none; }

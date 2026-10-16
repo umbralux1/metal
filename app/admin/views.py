@@ -1,13 +1,16 @@
 """Разделы админки. Адреса (slug, path) и поисковый текст считаются сами при сохранении."""
 
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from fastapi import FastAPI
 from markupsafe import Markup
 from sqladmin import Admin, ModelView, action
+from sqlalchemy import delete, select
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
-from wtforms import SelectField
+from wtforms import SelectField, StringField
+from wtforms.validators import Optional as OptionalValue
 
 from app.admin.auth import AdminAuth
 from app.catalog import paths
@@ -107,6 +110,39 @@ class CategoryAdmin(ModelView, model=Category):
         reset_nav_cache()
 
 
+# Цены прямо в форме товара, в рублях. В базе — копейки в таблице prices (точные расчёты без округлений).
+PRICE_FIELDS = (
+    ("price_m", Unit.METER, "Цена за метр, ₽"),
+    ("price_t", Unit.TON, "Цена за тонну, ₽"),
+    ("price_pcs", Unit.PIECE, "Цена за штуку, ₽"),
+    ("price_m2", Unit.SQUARE_METER, "Цена за м², ₽"),
+)
+
+
+def rub_to_kop(raw: Any) -> int | None:
+    """«43,25» / «48 700» / «48700.5» → копейки. Пусто — None. Мусор — понятная ошибка."""
+    text = str(raw or "").replace("\u00a0", "").replace(" ", "").replace("₽", "").replace(",", ".").strip()
+    if not text:
+        return None
+    try:
+        value = Decimal(text)
+    except InvalidOperation:
+        raise ValueError(f"Цена «{raw}»: введите число, например 43,25") from None
+    if not value.is_finite() or value <= 0:
+        raise ValueError(f"Цена «{raw}»: должна быть больше нуля")
+    if value != value.quantize(Decimal("0.01")):
+        raise ValueError(f"Цена «{raw}»: не больше двух знаков после запятой")
+    if value >= 100_000_000:
+        raise ValueError(f"Цена «{raw}»: слишком большая")
+    return int(value * 100)
+
+
+def kop_to_rub(kop: int) -> str:
+    """4325 → «43,25», 4870000 → «48700» — для поля формы (без пробелов, чтобы легко править)."""
+    rub, rest = divmod(kop, 100)
+    return f"{rub},{rest:02d}" if rest else str(rub)
+
+
 class ProductAdmin(ModelView, model=Product):
     name = "Товар"
     name_plural = "Товары"
@@ -114,11 +150,12 @@ class ProductAdmin(ModelView, model=Product):
     category = "Каталог"
     page_size = 50
 
-    column_list = [Product.name, Product.category, Product.prices, Product.in_stock, Product.is_active]
+    column_list = [Product.name, Product.category, "price_summary", Product.in_stock, Product.is_active]
     column_labels = {
         "name": "Название",
         "category": "Раздел",
         "prices": "Цены",
+        "price_summary": "Цены",
         "in_stock": "В наличии",
         "is_active": "Активен",
         "slug": "Slug",
@@ -174,7 +211,32 @@ class ProductAdmin(ModelView, model=Product):
     form_ajax_refs = {"category": {"fields": ("name", "path"), "order_by": "path"}}
     can_delete = False  # снимите «Активен» — адрес начнёт перенаправлять в раздел
 
+    async def scaffold_form(self, rules=None):
+        """Стандартная форма + поля цен сразу после «Основной единицы продажи»."""
+        base = await super().scaffold_form(rules)
+        anchor = base.base_unit.creation_counter
+        extra = {}
+        for i, (field, _unit, label) in enumerate(PRICE_FIELDS, start=1):
+            unbound = StringField(
+                label,
+                validators=[OptionalValue()],
+                description="Например 43,25 или 48 700. Пусто — такой цены нет." if i == 1 else "",
+                render_kw={"inputmode": "decimal", "autocomplete": "off", "class": "form-control"},
+            )
+            unbound.creation_counter = anchor + i / 10  # порядок полей в форме
+            extra[field] = unbound
+        return type("ProductFormWithPrices", (base,), extra)
+
+    async def get_form_data_for_edit(self, obj: Product) -> dict[str, Any]:
+        data = await super().get_form_data_for_edit(obj)
+        current = {p.unit: p.amount_kop for p in obj.prices}
+        for field, unit, _label in PRICE_FIELDS:
+            data[field] = kop_to_rub(current[unit]) if unit in current else ""
+        return data
+
     async def on_model_change(self, data: dict, model: Product, is_created: bool, request: Request) -> None:
+        # Поля цен не являются колонками товара: забираем их до сохранения, записываем в after_model_change
+        model._price_input = {unit: rub_to_kop(data.pop(field, None)) for field, unit, _label in PRICE_FIELDS}
         name = _clean(data.get("name"))
         data["slug"] = slugify(_clean(data.get("slug")) or name)
         async with SessionLocal() as session:
@@ -200,11 +262,28 @@ class ProductAdmin(ModelView, model=Product):
     async def after_model_change(self, data: dict, model: Product, is_created: bool, request: Request) -> None:
         old = getattr(model, "_old_path", None)
         async with SessionLocal() as session:
+            await self._save_prices(session, model)
             if old and old != model.path:
                 await paths.add_redirect(session, old, model.path)
-                await session.commit()
+            await session.commit()
             # Новый размер — новая посадочная; товар переезжает внутрь посадочной своего размера
             await generate_landings(session, fresh_ids={model.id} if is_created else None)
+
+    @staticmethod
+    async def _save_prices(session, model: Product) -> None:
+        """Цены из формы: заполнено — создать или обновить, пусто — удалить цену за эту единицу."""
+        wanted = getattr(model, "_price_input", None)
+        if wanted is None:
+            return
+        existing = {p.unit: p for p in await session.scalars(select(Price).where(Price.product_id == model.id))}
+        for unit, kop in wanted.items():
+            if kop is None:
+                if unit in existing:
+                    await session.execute(delete(Price).where(Price.id == existing[unit].id))
+            elif unit in existing:
+                existing[unit].amount_kop = kop
+            else:
+                session.add(Price(product_id=model.id, unit=unit, amount_kop=kop))
 
 
 class PriceAdmin(ModelView, model=Price):
