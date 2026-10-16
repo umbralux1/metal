@@ -51,3 +51,22 @@ def test_empty_coordinates_from_env_file():
 async def test_contacts_in_sitemap_and_footer(client):
     assert "/contacts/</loc>" in (await client.get("/sitemap.xml")).text
     assert 'href="/contacts/"' in (await client.get("/")).text
+
+
+async def test_contacts_markup_has_opening_hours(client, monkeypatch):
+    monkeypatch.setattr(settings, "work_hours", "Пн–Сб 9:00–19:00, Вс 10:00–15:00")
+    store = next(b for b in _jsonld((await client.get("/contacts/")).text) if b["@type"] == "Store")
+    assert store["openingHoursSpecification"] == [
+        {
+            "@type": "OpeningHoursSpecification",
+            "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+            "opens": "09:00",
+            "closes": "19:00",
+        },
+        {"@type": "OpeningHoursSpecification", "dayOfWeek": ["Sunday"], "opens": "10:00", "closes": "15:00"},
+    ]
+
+
+def test_unclear_hours_give_no_markup(monkeypatch):
+    monkeypatch.setattr(settings, "work_hours", "Звоните, договоримся")
+    assert "openingHoursSpecification" not in jsonld.local_business()

@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     city_prepositional: str = "Москве"
     phone: str = "+7 (495) 000-00-00"
     email: str = "info@example.ru"
-    work_hours: str = "Пн–Сб 9:00–19:00, Вс 10:00–15:00"
+    work_hours: str = "Пн–Сб 9:00–19:00, Вс 10:00–15:00"  # формат важен: из него же часы в разметке (app/seo/hours.py)
     address: str = ""  # адрес склада для подвала и контактов; пусто — не показываем
     whatsapp: str = ""  # номер цифрами, например 79160000000; пусто — кнопки нет
     telegram: str = ""  # имя пользователя или бота без @

@@ -5,6 +5,7 @@ from typing import Any
 
 from app.catalog.models import Product
 from app.core.config import settings
+from app.seo.hours import opening_hours
 from app.seo.meta import absolute
 
 
@@ -25,7 +26,7 @@ def organization() -> dict[str, Any]:
 
 
 def local_business() -> dict[str, Any]:
-    """Склад-магазин для страницы контактов: адрес, часы, координаты (если заданы)."""
+    """Склад-магазин для страницы контактов: адрес, часы работы, координаты (если заданы)."""
     data: dict[str, Any] = {
         "@context": "https://schema.org",
         "@type": "Store",
@@ -40,6 +41,9 @@ def local_business() -> dict[str, Any]:
             **({"streetAddress": settings.address} if settings.address else {}),
         },
     }
+    # Часы из того же текста, что на странице: по ним поиск пишет «открыто до 19:00»
+    if hours := opening_hours(settings.work_hours):
+        data["openingHoursSpecification"] = hours
     if settings.map_lat is not None and settings.map_lon is not None:
         data["geo"] = {"@type": "GeoCoordinates", "latitude": settings.map_lat, "longitude": settings.map_lon}
     return data
