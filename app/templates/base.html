@@ -24,7 +24,8 @@
 {% set nav = request.state.nav or [] %}
 <body>
   <a class="skip-link" href="#main">К содержанию</a>
-  <header class="site-header">
+  {# На странице результатов своего поля нет — там поиск в шапке открыт сразу, в том числе на телефоне #}
+  <header class="site-header{% if request.url.path == '/search/' %} is-search-open{% endif %}">
     <div class="container header-main">
       <a class="brand" href="/" aria-label="{{ settings.site_name }} — на главную">
         <span class="brand-mark" aria-hidden="true">
@@ -53,7 +54,7 @@
         </nav>
       </details>
       {% endif %}
-      <form class="search" action="/search/" method="get" role="search">
+      <form class="search" id="site-search" action="/search/" method="get" role="search">
         <input type="search" name="q" value="{{ q | default('') }}" placeholder="Например, труба 40х20" aria-label="Поиск по каталогу" autocomplete="off">
         <button type="submit" aria-label="Найти">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
@@ -63,6 +64,10 @@
         <a class="phone" href="{{ phone_href(settings.phone) }}">{{ settings.phone }}</a>
         <span class="hours">{{ settings.work_hours }}</span>
       </div>
+      {# Телефон: поиск свёрнут в лупу. Без JavaScript ссылка просто ведёт на страницу поиска #}
+      <a class="search-toggle" href="/search/" aria-controls="site-search" aria-expanded="false" aria-label="Поиск">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><g class="i-open"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></g><path class="i-close" d="M6 6l12 12M18 6L6 18"/></svg>
+      </a>
       {% set in_cart = cart_count(request) %}
       <a class="cart-link" href="/cart/" aria-label="Корзина{% if in_cart %}: {{ in_cart }} поз.{% endif %}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2.5l2.2 10.2a1.5 1.5 0 0 0 1.5 1.2h8.4a1.5 1.5 0 0 0 1.5-1.1L21 8H6.3"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></svg>
@@ -150,6 +155,43 @@
           menu.classList.add("is-highlighted");
         });
       });
+    })();
+    // Поиск в шапке: на телефоне свёрнут в лупу. «/» с клавиатуры открывает поиск на любом экране
+    (function () {
+      var header = document.querySelector(".site-header");
+      var toggle = header && header.querySelector(".search-toggle");
+      var input = header && header.querySelector(".search input");
+      if (!toggle || !input) return;
+      var phone = window.matchMedia("(max-width: 640px)");
+      var isOpen = function () { return header.classList.contains("is-search-open"); };
+      var set = function (open, focus) {
+        header.classList.toggle("is-search-open", open);
+        toggle.setAttribute("aria-expanded", open ? "true" : "false");
+        toggle.setAttribute("aria-label", open ? "Закрыть поиск" : "Поиск");
+        if (open && focus) input.focus();
+      };
+      set(isOpen(), false);
+      toggle.addEventListener("click", function (e) {
+        e.preventDefault();
+        set(!isOpen(), true);
+        if (!isOpen()) toggle.focus();
+      });
+      document.addEventListener("click", function (e) {
+        if (phone.matches && isOpen() && !input.value.trim() && !header.contains(e.target)) set(false);
+      });
+      // Перехват до подсказок: первый Esc закрывает подсказки, следующий — сам поиск
+      document.addEventListener("keydown", function (e) {
+        var t = e.target;
+        var typing = /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable;
+        if (e.key === "/" && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          e.preventDefault();
+          set(true, true);
+          input.select();
+        } else if (e.key === "Escape" && t === input && phone.matches && isOpen()) {
+          var box = header.querySelector(".suggest");
+          if (!box || box.hidden) { set(false); toggle.focus(); }
+        }
+      }, true);
     })();
     // Меню «Каталог»: закрыть по клику мимо и по Esc
     (function () {

@@ -82,6 +82,8 @@ p { margin: 0 0 12px; }
 }
 .search button svg { width: 20px; height: 20px; }
 .search button:hover { color: var(--accent); }
+/* Лупа вместо поля — только на телефоне (см. @media 640px) */
+.search-toggle { display: none; }
 
 .header-contact { margin-left: auto; text-align: right; display: grid; flex: none; }
 .phone { font-size: 19px; font-weight: 700; text-decoration: none; letter-spacing: -0.01em; }
@@ -422,6 +424,17 @@ a.catalog-btn:hover { color: #fff; }
   .cat-menu a { grid-template-columns: 48px minmax(0, 1fr) 18px; gap: 14px; min-height: 64px; padding: 6px 8px; font-size: 17px; }
   .cat-menu .icon { width: 48px; height: 48px; }
   .catalog-dd { display: none; } /* на телефоне каталог — в нижней панели, вся ширина строки отдаётся поиску */
+  /* Поиск свёрнут в лупу справа от телефона; по нажатию поле выезжает строкой под шапкой */
+  .search-toggle {
+    display: grid; place-items: center; flex: none; width: 44px; height: 44px; margin-right: -8px;
+    border-radius: var(--radius-m); color: var(--ink);
+  }
+  .search-toggle:hover, .is-search-open .search-toggle { background: #f1f4f6; color: var(--ink); }
+  .search-toggle svg { width: 24px; height: 24px; }
+  .search-toggle .i-close, .is-search-open .search-toggle .i-open { display: none; }
+  .is-search-open .search-toggle .i-close { display: inline; }
+  .site-header:not(.is-search-open) .search { display: none; }
+  .is-search-open .search { animation: search-in .18s ease-out; }
   .lead { font-size: 17px; }
   .search-lg input { padding-right: 16px; }
   .search-lg button { display: none; }
@@ -456,6 +469,23 @@ a.catalog-btn:hover { color: #fff; }
   .mobile-bar svg { width: 24px; height: 24px; }
 }
 
+/* Самые узкие телефоны (320–370 px): логотип, телефон и лупа должны уместиться в одну строку */
+@media (max-width: 370px) {
+  .header-main { gap: 0 6px; }
+  .brand { gap: 7px; }
+  .brand-mark { width: 30px; height: 30px; }
+  .brand-mark svg { width: 20px; height: 20px; }
+  .brand-name { font-size: 16px; }
+  .phone { font-size: 14px; }
+  .search-toggle { width: 40px; }
+}
+@media (max-width: 340px) {
+  .brand-name { display: none; } /* значок-логотип остаётся ссылкой на главную */
+}
+
+@keyframes search-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
 @media (prefers-reduced-motion: reduce) {
+  .is-search-open .search { animation: none; }
   * { scroll-behavior: auto !important; transition: none !important; }
 }
