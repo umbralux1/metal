@@ -49,6 +49,9 @@ async def test_add_with_fetch_returns_count_and_merges_same_item(shop):
     r1 = await shop.post("/cart/add/", data={"product_id": pid, "unit": "m", "qty": "11,7"}, headers=headers)
     r2 = await shop.post("/cart/add/", data={"product_id": pid, "unit": "m", "qty": "11,7"}, headers=headers)
     assert r1.json()["count"] == 1 and r2.json()["count"] == 1  # та же позиция — количество сложилось
+    # Для уведомления «Добавлено в корзину»: что, сколько и на какую сумму
+    added = r1.json()
+    assert added["name"] and "11,7 м" in added["summary"] and added["total"].endswith("₽")
     page = (await shop.get("/cart/")).text
     assert 'value="23,4"' in page and "1\u00a0012,05" in page
 

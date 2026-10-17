@@ -42,9 +42,15 @@
         if (!cartStatus) return;
         cartStatus.hidden = false;
         if (data.ok) {
-          document.querySelectorAll("[data-cart-count]").forEach((el) => { el.textContent = data.count; el.hidden = false; });
+          document.querySelectorAll("[data-cart-count]").forEach((el) => {
+            el.textContent = data.count;
+            el.hidden = false;
+            bump(el);
+          });
           cartStatus.className = "cart-added";
-          cartStatus.innerHTML = 'Добавлено в корзину · <a href="/cart/">Перейти в корзину</a>';
+          cartStatus.innerHTML = 'В корзине · <a href="/cart/">Перейти в корзину</a>';
+          flashButton(button);
+          showCartToast(data);
         } else {
           cartStatus.className = "calc-error";
           cartStatus.textContent = data.error || "Не получилось добавить, попробуйте ещё раз";
@@ -52,6 +58,64 @@
       })
       .catch(() => {})
       .finally(() => { button.disabled = false; });
+  };
+
+  // Яркая обратная связь: кнопка зеленеет, счётчик корзины подпрыгивает, всплывает уведомление
+  const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  const bump = (el) => {
+    el.classList.remove("is-bumped");
+    void el.offsetWidth; // перезапуск анимации при повторном добавлении
+    el.classList.add("is-bumped");
+  };
+  const flashButton = (button) => {
+    if (!button.dataset.label) button.dataset.label = button.innerHTML;
+    clearTimeout(button._flash);
+    button.classList.add("is-added");
+    button.innerHTML = `${CHECK} Добавлено`;
+    button._flash = setTimeout(() => {
+      button.classList.remove("is-added");
+      button.innerHTML = button.dataset.label;
+    }, 2000);
+  };
+  let toast = null;
+  let hideTimer = null;
+  const hideToast = () => {
+    if (!toast) return;
+    toast.classList.remove("is-shown");
+    clearTimeout(hideTimer);
+  };
+  const scheduleHide = () => {
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(hideToast, 6000);
+  };
+  const showCartToast = (data) => {
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.className = "cart-toast";
+      toast.setAttribute("role", "status");
+      toast.innerHTML =
+        `<span class="cart-toast-icon">${CHECK}</span>` +
+        '<div class="cart-toast-body"><p class="cart-toast-title">Добавлено в корзину</p>' +
+        '<p class="cart-toast-item"></p><p class="cart-toast-meta"></p></div>' +
+        '<button type="button" class="cart-toast-close" aria-label="Закрыть">×</button>' +
+        '<div class="cart-toast-actions"><a class="btn" href="/cart/">Оформить заказ</a>' +
+        '<button type="button" class="btn btn-ghost" data-toast-close>Продолжить</button></div>' +
+        '<span class="cart-toast-timer" aria-hidden="true"></span>';
+      document.body.appendChild(toast);
+      toast.addEventListener("click", (e) => { if (e.target.closest(".cart-toast-close, [data-toast-close]")) hideToast(); });
+      // Пока человек читает (мышь над уведомлением или фокус внутри) — не прячем
+      toast.addEventListener("mouseenter", () => { clearTimeout(hideTimer); toast.classList.add("is-paused"); });
+      toast.addEventListener("mouseleave", () => { toast.classList.remove("is-paused"); scheduleHide(); });
+      toast.addEventListener("focusin", () => { clearTimeout(hideTimer); toast.classList.add("is-paused"); });
+      toast.addEventListener("focusout", () => { toast.classList.remove("is-paused"); scheduleHide(); });
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideToast(); });
+    }
+    toast.querySelector(".cart-toast-item").textContent = data.name || "";
+    toast.querySelector(".cart-toast-meta").textContent = [data.summary, data.total].filter(Boolean).join(" · ");
+    toast.classList.remove("is-shown");
+    void toast.offsetWidth; // повторное добавление — заново проигрываем появление и таймер
+    toast.classList.add("is-shown");
+    scheduleHide();
   };
 
   form.addEventListener("submit", (e) => {

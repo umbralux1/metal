@@ -13,7 +13,7 @@ from app.catalog.calculator import CalcError, CalcResult, calculate, parse_input
 from app.catalog.models import Product
 from app.core.config import settings
 from app.core.db import get_session
-from app.core.templating import templates
+from app.core.templating import format_rub, templates
 from app.leads.models import Lead
 from app.leads.notify import notify_new_lead
 from app.leads.router import normalize_phone
@@ -63,6 +63,17 @@ def _meta(h1: str) -> PageMeta:
     )
 
 
+def _summary(result: CalcResult | None) -> str:
+    if result is None:
+        return ""
+    parts = []
+    if result.pieces:
+        parts.append(f"{result.pieces} шт.")
+    if result.meters:
+        parts.append(f"{result.meters.normalize():f}".replace(".", ",") + " м")
+    return " · ".join(parts)
+
+
 def _is_fetch(request: Request) -> bool:
     return request.headers.get("x-requested-with") == "fetch"
 
@@ -77,11 +88,12 @@ async def cart_add(request: Request, session: AsyncSession = Depends(get_session
     product = await session.get(Product, product_id)
     item = CartItem.from_form(product_id, form)
     error = None
+    result: CalcResult | None = None
     if product is None or not product.is_active:
         error = "Товар не найден, обновите страницу"
     else:
         try:
-            _calc(product, item)  # не кладём в корзину то, что не считается («0 м», резка длиннее прутка)
+            result = _calc(product, item)  # не кладём в корзину то, что не считается («0 м», резка длиннее прутка)
             items = store.add(store.load(request), item)
         except (CalcError, ValueError) as exc:
             error = str(exc)
@@ -89,7 +101,15 @@ async def cart_add(request: Request, session: AsyncSession = Depends(get_session
     if _is_fetch(request):
         if error:
             return JSONResponse({"ok": False, "error": error}, status_code=422, headers=NOINDEX)
-        response = JSONResponse({"ok": True, "count": len(items), "name": product.name}, headers=NOINDEX)
+        # Что добавили — для всплывающего уведомления: «25 шт. · 300 м · 12 975 ₽»
+        added = {
+            "ok": True,
+            "count": len(items),
+            "name": product.name,
+            "summary": _summary(result),
+            "total": format_rub(result.total_kop) if result else "",
+        }
+        response = JSONResponse(added, headers=NOINDEX)
     else:
         if error:
             target = f"{product.url}#calc" if product else "/cart/"

@@ -153,6 +153,42 @@ p { margin: 0 0 12px; }
 .btn-cart { width: 100%; margin-top: 12px; }
 .btn-cart svg { width: 20px; height: 20px; }
 .cart-added { margin: 10px 0 0; font-size: 15px; color: #14532d; }
+.btn-cart.is-added, .btn-cart.is-added:hover { background: var(--ok); animation: cart-pop .35s ease-out; }
+.btn-cart.is-added svg { width: 22px; height: 22px; }
+@keyframes cart-pop { 0% { transform: scale(1); } 40% { transform: scale(1.04); } 100% { transform: scale(1); } }
+
+/* Счётчик корзины подпрыгивает при добавлении */
+.cart-count.is-bumped { animation: badge-bump .6s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes badge-bump { 0% { transform: scale(1); } 30% { transform: scale(1.7); background: var(--ok); } 100% { transform: scale(1); } }
+
+/* Уведомление «Добавлено в корзину»: справа вверху, на телефоне — над нижней панелью */
+.cart-toast {
+  position: fixed; z-index: 60; top: 88px; right: 24px; width: 380px; max-width: calc(100vw - 24px);
+  display: grid; grid-template-columns: 40px minmax(0, 1fr) 28px; gap: 4px 12px; align-items: start;
+  padding: 16px 16px 18px; background: var(--surface); border: 1px solid var(--line-soft); border-left: 4px solid var(--ok);
+  border-radius: var(--radius-m); box-shadow: 0 20px 48px rgba(27, 38, 48, .2); overflow: hidden;
+  opacity: 0; transform: translateY(-12px); pointer-events: none; visibility: hidden;
+  transition: opacity .2s, transform .25s cubic-bezier(.2, .9, .3, 1.2), visibility 0s .25s;
+}
+.cart-toast.is-shown { opacity: 1; transform: none; pointer-events: auto; visibility: visible; transition-delay: 0s; }
+.cart-toast-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--ok); color: #fff; }
+.cart-toast-icon svg { width: 24px; height: 24px; }
+.cart-toast.is-shown .cart-toast-icon { animation: cart-pop .4s .1s ease-out both; }
+.cart-toast-body p { margin: 0; }
+.cart-toast-title { font-weight: 700; font-size: 17px; color: var(--ok); }
+.cart-toast-item { font-weight: 600; margin-top: 2px !important; }
+.cart-toast-meta { font-size: 14px; color: var(--muted); margin-top: 2px !important; }
+.cart-toast-close { border: 0; background: none; font-size: 24px; line-height: 1; color: var(--muted); cursor: pointer; padding: 0; width: 28px; height: 28px; border-radius: 6px; }
+.cart-toast-close:hover { background: #f1f4f6; color: var(--ink); }
+.cart-toast-actions { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.cart-toast-actions .btn { min-height: 44px; padding: 0 10px; font-size: 15px; }
+.cart-toast-actions .btn:not(.btn-ghost) { background: var(--ok); }
+.cart-toast-actions .btn:not(.btn-ghost):hover { background: #18703d; }
+/* Полоска оставшегося времени; пока мышь над уведомлением — стоит */
+.cart-toast-timer { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--ok); opacity: .35; transform-origin: left; }
+.cart-toast.is-shown .cart-toast-timer { animation: toast-timer 6s linear forwards; }
+.cart-toast.is-paused .cart-toast-timer { animation: none; }
+@keyframes toast-timer { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 .cart { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 24px; align-items: start; margin: 8px 0 40px; }
 .cart-lines { display: grid; gap: 10px; }
 .cart-line {
@@ -520,6 +556,8 @@ a.catalog-btn:hover { color: #fff; }
   .footer-grid { grid-template-columns: 1fr; gap: 24px; }
   .site-footer { margin-top: 40px; padding-bottom: 72px; }
 
+  .cart-toast { top: auto; right: 12px; left: 12px; width: auto; max-width: none; bottom: calc(76px + env(safe-area-inset-bottom)); transform: translateY(16px); }
+  .cart-toast.is-shown { transform: none; }
   .mobile-bar {
     display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
     background: var(--surface); border-top: 1px solid var(--line);
@@ -549,5 +587,6 @@ a.catalog-btn:hover { color: #fff; }
 
 @media (prefers-reduced-motion: reduce) {
   .is-search-open .search { animation: none; }
+  .btn-cart.is-added, .cart-count.is-bumped, .cart-toast.is-shown .cart-toast-icon, .cart-toast.is-shown .cart-toast-timer { animation: none; }
   * { scroll-behavior: auto !important; transition: none !important; }
 }
