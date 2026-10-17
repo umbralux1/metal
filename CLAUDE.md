@@ -17,4 +17,5 @@
 - Служебные команды в `migrations/env.py` коммитить до `context.configure`, иначе Alembic не зафиксирует миграцию.
 
 ## Проверки перед сдачей
-- `pytest`, `ruff check .`, совместимость с Python 3.11 (Render).
+- `make check` (= `ruff check .` + `pytest`), совместимость с Python 3.11 (Render).
+- Новые частые команды — целью в `Makefile` с описанием после `##` (оно попадает в `make help`).
