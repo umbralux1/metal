@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     # Абсолютный адрес сайта без слеша в конце: из него строятся canonical, sitemap, JSON-LD
     site_url: str = "http://localhost:8000"
     site_name: str = "Дом металла"
+    # Подпись под названием в шапке; пусто — «Металлопрокат в <городе>»
+    site_tagline: str = ""
     city: str = "Москва"
     # Город в предложном/дательном падеже: «в Москве», «по Москве»
     city_prepositional: str = "Москве"

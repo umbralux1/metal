@@ -65,7 +65,9 @@ p { margin: 0 0 12px; }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; flex: none; }
 .brand-mark { width: 38px; height: 38px; border-radius: 8px; background: var(--ink); color: #fff; display: grid; place-items: center; }
 .brand-mark svg { width: 24px; height: 24px; }
+.brand-text { display: grid; line-height: 1.15; }
 .brand-name { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+.brand-tagline { font-size: 12px; color: var(--muted); font-weight: 500; letter-spacing: 0; margin-top: 2px; }
 .brand:hover { color: var(--ink); }
 
 .search { display: flex; flex: 1; max-width: 560px; position: relative; }
@@ -535,6 +537,12 @@ a.catalog-btn:hover { color: #fff; }
   .search-toggle .i-close, .is-search-open .search-toggle .i-open { display: none; }
   .is-search-open .search-toggle .i-close { display: inline; }
   .site-header:not(.is-search-open) .search { display: none; }
+  /* Липкая шапка: при прокрутке вниз уезжает, вверх — возвращается, с тенью вместо линии.
+     Высоту при прокрутке не меняем: иначе страница дёргается и браузер принимает это за прокрутку вверх */
+  .site-header { position: sticky; top: 0; z-index: 40; transition: transform .25s ease, box-shadow .2s; }
+  .site-header.is-hidden { transform: translateY(-100%); }
+  .site-header.is-stuck { border-bottom-color: transparent; box-shadow: 0 4px 16px rgba(27, 38, 48, .1); }
+  .search-toggle { margin-left: 4px; }
   .is-search-open .search { animation: search-in .18s ease-out; }
   .contact-panel { left: 12px; right: 12px; width: auto; top: calc(100% - 4px); max-height: calc(100vh - 150px); overflow-y: auto; }
   .lead { font-size: 17px; }
@@ -574,6 +582,13 @@ a.catalog-btn:hover { color: #fff; }
   .mobile-bar svg { width: 24px; height: 24px; }
 }
 
+
+/* Самые узкие телефоны: подпись под названием чуть мельче, чтобы строка шапки не переносилась */
+@media (max-width: 360px) {
+  .header-main { gap: 0 6px; }
+  .brand { gap: 8px; }
+  .brand-tagline { font-size: 11px; }
+}
 
 @keyframes search-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 

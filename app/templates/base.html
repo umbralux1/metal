@@ -32,7 +32,11 @@
         <span class="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="4.5" y="4.5" width="15" height="15" rx="2"/><rect x="8" y="8" width="8" height="8" rx=".6"/></svg>
         </span>
-        <span class="brand-name">{{ settings.site_name }}</span>
+        <span class="brand-text">
+          <span class="brand-name">{{ settings.site_name }}</span>
+          {# Подпись под названием: человек из поиска сразу понимает, куда попал #}
+          <span class="brand-tagline">{{ settings.site_tagline or "Металлопрокат в " ~ settings.city_prepositional }}</span>
+        </span>
       </a>
       {% set on_home = request.url.path == "/" %}
       {% if nav and on_home %}
@@ -216,6 +220,36 @@
           if (!box || box.hidden) { set(false); toggle.focus(); }
         }
       }, true);
+    })();
+    // Телефон: шапка липкая — прячется при прокрутке вниз, возвращается при прокрутке вверх
+    (function () {
+      var header = document.querySelector(".site-header");
+      if (!header) return;
+      var phone = window.matchMedia("(max-width: 640px)");
+      var lastY = window.scrollY;
+      var ticking = false;
+      var busy = function () {
+        // Не прячем, пока человек работает с шапкой: открыт поиск, список контактов или подсказки
+        return header.querySelector("details[open]") || header.contains(document.activeElement) && document.activeElement.tagName === "INPUT";
+      };
+      var update = function () {
+        ticking = false;
+        var y = Math.max(window.scrollY, 0);
+        header.classList.toggle("is-stuck", y > 4);
+        if (!phone.matches || busy()) {
+          header.classList.remove("is-hidden");
+        } else if (y > lastY + 6 && y > header.offsetHeight) {
+          header.classList.add("is-hidden");
+        } else if (y < lastY - 6) {
+          header.classList.remove("is-hidden");
+        }
+        if (Math.abs(y - lastY) > 6) lastY = y;
+      };
+      window.addEventListener("scroll", function () {
+        if (!ticking) { ticking = true; window.requestAnimationFrame(update); }
+      }, { passive: true });
+      header.addEventListener("focusin", function () { header.classList.remove("is-hidden"); });
+      update();
     })();
     // Меню «Каталог» и список контактов: закрыть по клику мимо и по Esc
     document.querySelectorAll("details.catalog-dd, details.contact-dd").forEach(function (dd) {
