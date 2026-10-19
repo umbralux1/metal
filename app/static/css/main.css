@@ -101,7 +101,8 @@ p { margin: 0 0 12px; }
 .contact-toggle::-webkit-details-marker { display: none; }
 .contact-toggle:hover, .contact-dd[open] .contact-toggle { background: #f1f4f6; color: var(--ink); }
 .contact-toggle svg { width: 20px; height: 20px; transition: transform .15s; }
-.contact-dd[open] .contact-toggle svg { transform: rotate(180deg); }
+.contact-toggle .i-phone { display: none; }
+.contact-dd[open] .contact-toggle .i-chevron { transform: rotate(180deg); }
 .contact-panel {
   position: absolute; z-index: 30; top: calc(100% + 10px); right: 0; width: 380px; text-align: left;
   background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius-m);
@@ -517,10 +518,14 @@ a.catalog-btn:hover { color: #fff; }
   .cat-menu a { grid-template-columns: 48px minmax(0, 1fr) 18px; gap: 14px; min-height: 64px; padding: 6px 8px; font-size: 17px; }
   .cat-menu .icon { width: 48px; height: 48px; }
   .catalog-dd { display: none; } /* на телефоне каталог — в нижней панели, вся ширина строки отдаётся поиску */
-  /* Поиск свёрнут в лупу справа от телефона; по нажатию поле выезжает строкой под шапкой */
   .header-contact { position: static; }
-  .contact-toggle { width: 30px; height: 36px; }
-  .contact-panel { left: 12px; right: 12px; width: auto; top: calc(100% - 4px); max-height: calc(100vh - 150px); overflow-y: auto; }
+  /* Номер в шапке не показываем: позвонить — кнопкой в нижней панели, все номера — по трубке */
+  .header-contact .phone { display: none; }
+  .contact-toggle { width: 44px; height: 44px; margin-right: -6px; color: var(--ink); }
+  .contact-toggle svg { width: 24px; height: 24px; }
+  .contact-toggle .i-chevron { display: none; }
+  .contact-toggle .i-phone { display: block; }
+  /* Поиск свёрнут в лупу рядом с трубкой; по нажатию поле выезжает строкой под шапкой */
   .search-toggle {
     display: grid; place-items: center; flex: none; width: 44px; height: 44px; margin-right: -8px;
     border-radius: var(--radius-m); color: var(--ink);
@@ -531,6 +536,7 @@ a.catalog-btn:hover { color: #fff; }
   .is-search-open .search-toggle .i-close { display: inline; }
   .site-header:not(.is-search-open) .search { display: none; }
   .is-search-open .search { animation: search-in .18s ease-out; }
+  .contact-panel { left: 12px; right: 12px; width: auto; top: calc(100% - 4px); max-height: calc(100vh - 150px); overflow-y: auto; }
   .lead { font-size: 17px; }
   .search-lg input { padding-right: 16px; }
   .search-lg button { display: none; }
@@ -568,20 +574,6 @@ a.catalog-btn:hover { color: #fff; }
   .mobile-bar svg { width: 24px; height: 24px; }
 }
 
-/* Самые узкие телефоны (320–370 px): логотип, телефон и лупа должны уместиться в одну строку */
-@media (max-width: 370px) {
-  .header-main { gap: 0 6px; }
-  .brand { gap: 7px; }
-  .brand-mark { width: 30px; height: 30px; }
-  .brand-mark svg { width: 20px; height: 20px; }
-  .brand-name { font-size: 16px; }
-  .phone { font-size: 14px; }
-  .search-toggle { width: 40px; }
-}
-@media (max-width: 420px) {
-  /* Номер со стрелкой и лупа важнее названия: значок-логотип остаётся ссылкой на главную */
-  .brand-name { display: none; }
-}
 
 @keyframes search-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 
