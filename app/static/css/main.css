@@ -523,7 +523,10 @@ a.catalog-btn:hover { color: #fff; }
   .header-contact { position: static; }
   /* Номер в шапке не показываем: позвонить — кнопкой в нижней панели, все номера — по трубке */
   .header-contact .phone { display: none; }
-  .contact-toggle { width: 44px; height: 44px; margin-right: -6px; color: var(--ink); }
+  /* Трубка в шапке — главное действие для металлобазы: акцентный цвет, отличается от «Позвонить» внизу,
+     которая звонит сразу, а эта открывает все номера и мессенджеры */
+  .contact-toggle { width: 44px; height: 44px; margin-right: 0; border-radius: 50%; color: var(--accent); background: var(--accent-soft); }
+  .contact-toggle:hover, .contact-dd[open] .contact-toggle { color: #fff; background: var(--accent); }
   .contact-toggle svg { width: 24px; height: 24px; }
   .contact-toggle .i-chevron { display: none; }
   .contact-toggle .i-phone { display: block; }

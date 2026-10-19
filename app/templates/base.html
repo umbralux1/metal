@@ -15,6 +15,7 @@
   <meta property="og:url" content="{{ meta.canonical }}">
   <meta name="theme-color" content="#1b2630">
   <link rel="icon" href="{{ static_url('favicon.svg') }}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{{ static_url('apple-touch-icon.png') }}">
   <link rel="preload" href="/static/fonts/golos-text.woff" as="font" type="font/woff" crossorigin>
   <link rel="stylesheet" href="{{ static_url('css/main.css') }}">
   {% for block in jsonld | default([]) %}
@@ -30,7 +31,8 @@
     <div class="container header-main">
       <a class="brand" href="/" aria-label="{{ settings.site_name }} — на главную">
         <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="4.5" y="4.5" width="15" height="15" rx="2"/><rect x="8" y="8" width="8" height="8" rx=".6"/></svg>
+          {# Знак «Дом металла»: крыша — уголок (две полки), под ней стены. Тот же рисунок — в favicon.svg #}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 11.4 12 4.2l8.4 7.2"/><path d="M6.4 11.6 12 6.8l5.6 4.8"/><path d="M6.4 12.4v7.1h11.2v-7.1"/><path d="M10.5 19.5v-3.6h3v3.6"/></svg>
         </span>
         <span class="brand-text">
           <span class="brand-name">{{ settings.site_name }}</span>
