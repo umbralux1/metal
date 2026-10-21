@@ -46,6 +46,11 @@ def prepare_database() -> None:
     started = time.monotonic()
     step("Подготовка базы: миграции…")
     migrate()
+    # Тарифы доставки нужны и на боевом сайте, не только с демо-каталогом. В непустую таблицу не пишет.
+    step("Подготовка базы: машины доставки…")
+    from app.delivery.seed import main as seed_vehicles
+
+    asyncio.run(seed_vehicles())
     if settings.seed_demo:
         step("Подготовка базы: демо-каталог…")
         from app.catalog.seed import main as seed

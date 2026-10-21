@@ -12,10 +12,12 @@ import httpx  # noqa: E402
 import pytest_asyncio  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 
+import app.models  # noqa: E402, F401  — регистрирует все таблицы, как для Alembic
 from app.catalog.landings import generate_landings  # noqa: E402
 from app.catalog.models import Redirect  # noqa: E402
 from app.catalog.seed import _seed_base  # noqa: E402
 from app.core.db import Base, SessionLocal, engine  # noqa: E402
+from app.delivery.seed import seed_vehicles  # noqa: E402
 from app.main import app as fastapi_app  # noqa: E402
 
 
@@ -32,6 +34,7 @@ async def database():
         await generate_landings(session, fresh_ids=fresh)
         session.add(Redirect(from_path="/catalog/old-armatura/", to_path="/catalog/armatura/"))
         await session.commit()
+        await seed_vehicles(session)  # тарифы доставки, как при запуске сервера
     yield
     await engine.dispose()
 
