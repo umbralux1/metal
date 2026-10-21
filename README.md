@@ -42,7 +42,8 @@ make           # список всех команд
 
 `/admin` — разделы, товары, цены, посадочные (SEO-фильтры), редиректы и заявки. Работает на SQLAdmin.
 
-Подробно: [docs/admin.md](docs/admin.md) — как пользоваться админкой, [docs/database.md](docs/database.md) — таблицы базы.
+Подробно: [docs/admin.md](docs/admin.md) — как пользоваться админкой, [docs/database.md](docs/database.md) — таблицы базы,
+[docs/delivery.md](docs/delivery.md) — доставка: машины, тарифы, расчёт цены.
 
 - Включается паролем: `ADMIN_PASSWORD` в `.env` (локально) или в `deploy/render.env` / Environment на Render. Без пароля `/admin` не существует.
 - Логин — `ADMIN_USERNAME` (по умолчанию `admin`). После 5 неверных паролей за 15 минут вход с этого IP закрывается.
