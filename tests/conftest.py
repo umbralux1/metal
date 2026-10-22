@@ -13,6 +13,7 @@ import pytest_asyncio  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 
 import app.models  # noqa: E402, F401  — регистрирует все таблицы, как для Alembic
+from app.admin.auth import reset_login_limits  # noqa: E402
 from app.catalog.landings import generate_landings  # noqa: E402
 from app.catalog.models import Redirect  # noqa: E402
 from app.catalog.seed import _seed_base  # noqa: E402
@@ -37,6 +38,17 @@ async def database():
         await seed_vehicles(session)  # тарифы доставки, как при запуске сервера
     yield
     await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def admin():
+    """Клиент, вошедший в админку."""
+    reset_login_limits()
+    transport = httpx.ASGITransport(app=fastapi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as c:
+        r = await c.post("/admin/login", data={"username": "admin", "password": "test-admin-pass"})
+        assert r.status_code == 302
+        yield c
 
 
 @pytest_asyncio.fixture(scope="session")

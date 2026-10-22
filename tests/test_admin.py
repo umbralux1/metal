@@ -2,7 +2,6 @@
 
 import httpx
 import pytest
-import pytest_asyncio
 from sqlalchemy import select
 
 from app.admin.auth import reset_login_limits
@@ -18,15 +17,6 @@ ADMIN_PAGES = ["category", "product", "price", "filter-landing", "redirect", "le
 
 def new_client(app=fastapi_app) -> httpx.AsyncClient:
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver")
-
-
-@pytest_asyncio.fixture
-async def admin():
-    reset_login_limits()
-    async with new_client() as c:
-        r = await c.post("/admin/login", data={"username": "admin", "password": "test-admin-pass"})
-        assert r.status_code == 302
-        yield c
 
 
 async def get_one(model, **filters):
