@@ -48,6 +48,13 @@
     {% endfor %}
   </section>
 
+  {# Карта склада — под товарами: на компьютере широкая, на телефоне между товарами и формой.
+     Виджет без ключа API; с ключом здесь будет выбор точки и маршрут (этап 2) #}
+  <section class="delivery-map delivery-only" aria-label="Склад на карте">
+    <iframe src="{{ map.widget_src }}" title="Склад {{ settings.site_name }} на Яндекс Картах" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+    <a href="{{ map.route_url or map.open_url }}" target="_blank" rel="noopener">Построить маршрут от склада в Яндекс Картах — посмотреть, сколько километров</a>
+  </section>
+
   <aside class="cart-summary" aria-labelledby="checkout-title">
     <div class="buy-card">
       <p class="cart-total"><span>Товары</span><strong>{{ total_kop | rub }}</strong></p>
@@ -72,11 +79,6 @@
           </label>
           <button form="distance-form" class="btn-link" type="submit">Посчитать доставку</button>
           <p class="muted small">Посчитайте по карте от склада до объекта. <a href="/delivery/">Тарифы доставки</a></p>
-        </div>
-        {# Карта склада — виджет без ключа API. С ключом здесь будет выбор точки и маршрут (этап 2) #}
-        <div class="delivery-map delivery-only">
-          <iframe src="{{ map.widget_src }}" title="Склад {{ settings.site_name }} на Яндекс Картах" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
-          <a href="{{ map.route_url or map.open_url }}" target="_blank" rel="noopener">Построить маршрут от склада в Яндекс Картах</a>
         </div>
         <input type="hidden" name="distance_km" value="{{ values.get('distance_km', '') }}">
         <fieldset class="vehicle-choice delivery-only">
