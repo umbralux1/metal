@@ -66,3 +66,11 @@ def count_queries():
         yield queries
     finally:
         event.remove(engine.sync_engine, "before_cursor_execute", on_execute)
+
+
+def run_alembic(direction: str, revision: str) -> None:
+    """Миграции Alembic в базе из settings.database_url: run_alembic("upgrade", "head")."""
+    from alembic import command
+    from alembic.config import Config
+
+    getattr(command, direction)(Config("alembic.ini"), revision)

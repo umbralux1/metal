@@ -15,12 +15,12 @@ from decimal import Decimal
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import create_engine, delete, inspect, select, text
-from sqlalchemy.engine import make_url
+from sqlalchemy import delete, inspect, select
 from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
 from app.core.db import SessionLocal
+from tests.helpers import run_alembic
 
 # Тарифы из ТЗ: (название, грузоподъёмность кг, длина м, базовая цена ₽, км в базовой цене, ₽ за км сверх, выгрузка сами)
 TARIFFS = [
@@ -197,29 +197,6 @@ def test_startup_seeds_vehicles_even_without_demo(monkeypatch):
 # ---------- Миграции ----------
 
 
-@pytest.fixture
-def migrations_db(monkeypatch):
-    """Отдельная пустая база, которую строят только миграции Alembic (как на Render)."""
-    url = make_url(settings.database_url).set(database="metal_migrations")
-    admin = create_engine(url.set(database="postgres", drivername="postgresql+psycopg"), isolation_level="AUTOCOMMIT")
-    with admin.connect() as conn:
-        conn.execute(text("DROP DATABASE IF EXISTS metal_migrations WITH (FORCE)"))
-        conn.execute(text("CREATE DATABASE metal_migrations"))
-    monkeypatch.setattr(settings, "database_url", url.render_as_string(hide_password=False))
-    sync_url = url.set(drivername="postgresql+psycopg")
-    yield create_engine(sync_url)
-    with admin.connect() as conn:
-        conn.execute(text("DROP DATABASE IF EXISTS metal_migrations WITH (FORCE)"))
-    admin.dispose()
-
-
-def _alembic(direction: str, revision: str) -> None:
-    from alembic import command
-    from alembic.config import Config
-
-    getattr(command, direction)(Config("alembic.ini"), revision)
-
-
 def test_migrations_match_models(migrations_db):
     """База из миграций совпадает с моделями: поймает и забытую миграцию, и миграцию с ошибкой."""
     from alembic.autogenerate import compare_metadata
@@ -227,7 +204,7 @@ def test_migrations_match_models(migrations_db):
 
     from app.models import Base
 
-    _alembic("upgrade", "head")
+    run_alembic("upgrade", "head")
     with migrations_db.connect() as conn:
         diff = compare_metadata(MigrationContext.configure(conn), Base.metadata)
     migrations_db.dispose()
@@ -235,7 +212,7 @@ def test_migrations_match_models(migrations_db):
 
 
 def test_delivery_migration_upgrades_and_downgrades(migrations_db):
-    _alembic("upgrade", "head")
+    run_alembic("upgrade", "head")
     columns = {c["name"] for c in inspect(migrations_db).get_columns("delivery_vehicles")}
     assert {
         "name",
@@ -250,11 +227,11 @@ def test_delivery_migration_upgrades_and_downgrades(migrations_db):
     } <= columns
     assert inspect(migrations_db).get_check_constraints("delivery_vehicles"), "нет проверок в базе"
 
-    _alembic("downgrade", "0003")  # откат на версию до доставки
+    run_alembic("downgrade", "0003")  # откат на версию до доставки
     migrations_db.dispose()
     assert "delivery_vehicles" not in inspect(migrations_db).get_table_names()
 
-    _alembic("upgrade", "head")  # и обратно — миграция повторяема
+    run_alembic("upgrade", "head")  # и обратно — миграция повторяема
     migrations_db.dispose()
     assert "delivery_vehicles" in inspect(migrations_db).get_table_names()
     migrations_db.dispose()
