@@ -54,6 +54,13 @@ source_modules = ["app.delivery"]
 forbidden_modules = ["app.catalog", "app.cart", "app.leads", "app.seo", "app.pages", "app.admin"]
 
 [[tool.importlinter.contracts]]
+name = "Таблицы доставки — только самой доставке и админке"
+type = "forbidden"
+source_modules = ["app.cart", "app.leads", "app.catalog", "app.pages", "app.seo"]
+forbidden_modules = ["app.delivery.models"]
+allow_indirect_imports = true  # через app.delivery.service — можно, напрямую — нет
+
+[[tool.importlinter.contracts]]
 name = "Чистые функции: без базы, сети и веба"
 type = "forbidden"
 source_modules = [
