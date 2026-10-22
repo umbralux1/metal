@@ -12,6 +12,7 @@ from wtforms import SelectField, StringField
 from wtforms.validators import Optional as OptionalValue
 
 from app.admin.auth import AdminAuth
+from app.admin.delivery import DeliveryVehicleAdmin
 from app.admin.money import kop_to_rub, rub_to_kop
 from app.catalog import paths
 from app.catalog.landings import generate_landings
@@ -522,7 +523,15 @@ def setup_admin(app: FastAPI) -> Admin | None:
         title=f"{settings.site_name} — админка",
         base_url="/admin",
     )
-    for view in (CategoryAdmin, ProductAdmin, PriceAdmin, FilterLandingAdmin, RedirectAdmin, LeadAdmin):
+    for view in (
+        CategoryAdmin,
+        ProductAdmin,
+        PriceAdmin,
+        FilterLandingAdmin,
+        RedirectAdmin,
+        LeadAdmin,
+        DeliveryVehicleAdmin,
+    ):
         admin.add_view(view)
     return admin
 
