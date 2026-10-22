@@ -331,3 +331,20 @@ def test_admin_shows_delivery_price_unknown():
         )
     )
     assert "уточнить" in html.lower() or "уточнит" in html.lower()
+
+
+# ---------- Карта склада в блоке доставки (до ключа API — виджет без ключа) ----------
+
+
+async def test_cart_shows_warehouse_map_and_route_link(shop):
+    from markupsafe import escape
+
+    from app.core.maps import yandex_map
+
+    await add_short_pieces(shop)
+    html = (await shop.get("/cart/")).text
+    view = yandex_map()
+    assert f'src="{escape(view.widget_src)}"' in html  # тот же виджет, что на «Контактах»
+    map_block = html.split('class="delivery-map', 1)[1].split("</div>", 1)[0]
+    assert "<iframe" in map_block and 'loading="lazy"' in map_block
+    assert f'href="{escape(view.route_url or view.open_url)}"' in html  # маршрут от склада — посмотреть км
