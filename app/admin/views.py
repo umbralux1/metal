@@ -1,6 +1,5 @@
 """Разделы админки. Адреса (slug, path) и поисковый текст считаются сами при сохранении."""
 
-from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from fastapi import FastAPI
@@ -13,6 +12,7 @@ from wtforms import SelectField, StringField
 from wtforms.validators import Optional as OptionalValue
 
 from app.admin.auth import AdminAuth
+from app.admin.money import kop_to_rub, rub_to_kop
 from app.catalog import paths
 from app.catalog.landings import generate_landings
 from app.catalog.models import Category, FilterLanding, Price, Product, Redirect, Unit
@@ -117,30 +117,6 @@ PRICE_FIELDS = (
     ("price_pcs", Unit.PIECE, "Цена за штуку, ₽"),
     ("price_m2", Unit.SQUARE_METER, "Цена за м², ₽"),
 )
-
-
-def rub_to_kop(raw: Any) -> int | None:
-    """«43,25» / «48 700» / «48700.5» → копейки. Пусто — None. Мусор — понятная ошибка."""
-    text = str(raw or "").replace("\u00a0", "").replace(" ", "").replace("₽", "").replace(",", ".").strip()
-    if not text:
-        return None
-    try:
-        value = Decimal(text)
-    except InvalidOperation:
-        raise ValueError(f"Цена «{raw}»: введите число, например 43,25") from None
-    if not value.is_finite() or value <= 0:
-        raise ValueError(f"Цена «{raw}»: должна быть больше нуля")
-    if value != value.quantize(Decimal("0.01")):
-        raise ValueError(f"Цена «{raw}»: не больше двух знаков после запятой")
-    if value >= 100_000_000:
-        raise ValueError(f"Цена «{raw}»: слишком большая")
-    return int(value * 100)
-
-
-def kop_to_rub(kop: int) -> str:
-    """4325 → «43,25», 4870000 → «48700» — для поля формы (без пробелов, чтобы легко править)."""
-    rub, rest = divmod(kop, 100)
-    return f"{rub},{rest:02d}" if rest else str(rub)
 
 
 class ProductAdmin(ModelView, model=Product):
