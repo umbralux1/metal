@@ -23,7 +23,7 @@ from app.catalog.utils import normalize_search, slugify
 from app.core.config import settings
 from app.core.db import SessionLocal, engine
 from app.core.nav import reset_nav_cache
-from app.core.templating import format_rub
+from app.core.templating import format_local_time, format_rub
 from app.leads.models import Lead
 
 UNIT_CHOICES = [(u.value, {"m": "Метр", "t": "Тонна", "pcs": "Штука", "m2": "Квадратный метр"}[u.value]) for u in Unit]
@@ -412,6 +412,7 @@ class RedirectAdmin(ModelView, model=Redirect):
     column_labels = {"from_path": "Откуда", "to_path": "Куда", "status_code": "Код", "created_at": "Создан"}
     column_searchable_list = [Redirect.from_path, Redirect.to_path]
     column_default_sort = [(Redirect.created_at, True)]
+    column_formatters = {Redirect.created_at: lambda m, a: format_local_time(m.created_at)}
     form_columns = [Redirect.from_path, Redirect.to_path, Redirect.status_code]
     form_args = {
         "from_path": {"description": "Старый адрес без домена, например /catalog/old-armatura/"},
@@ -541,9 +542,10 @@ class LeadAdmin(ModelView, model=Lead):
     column_formatters = {
         Lead.calc: lambda m, a: format_rub(m.calc.get("total_kop")) if m.calc else "—",
         Lead.status: lambda m, a: dict(LEAD_STATUSES).get(m.status, m.status),
-        Lead.created_at: lambda m, a: m.created_at.strftime("%d.%m.%Y %H:%M") if m.created_at else "",
+        Lead.created_at: lambda m, a: format_local_time(m.created_at),
     }
     column_formatters_detail = {
+        Lead.created_at: lambda m, a: format_local_time(m.created_at),
         Lead.status: lambda m, a: dict(LEAD_STATUSES).get(m.status, m.status),
         Lead.calc: lambda m, a: _lead_calc_html(m.calc or {}),
     }

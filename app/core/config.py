@@ -2,6 +2,7 @@ import os
 import secrets
 from functools import lru_cache
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -88,6 +89,9 @@ class Settings(BaseSettings):
     # Доставка: дальше этого расстояния цену не считаем — «стоимость уточнит менеджер»
     delivery_max_km: int = 200
 
+    # Часовой пояс сайта: в нём админка показывает время. В базе время хранится с поясом, отдаётся в UTC
+    timezone: str = "Europe/Moscow"
+
     @property
     def phones(self) -> list[str]:
         """Основной телефон первым, затем дополнительные (без повторов)."""
@@ -119,6 +123,16 @@ class Settings(BaseSettings):
     @classmethod
     def _empty_coordinate(cls, value: object) -> object:
         return None if value == "" else value
+
+    @field_validator("timezone")
+    @classmethod
+    def _known_timezone(cls, name: str) -> str:
+        """Опечатка в TIMEZONE останавливает запуск, а не роняет админку при показе времени."""
+        try:
+            ZoneInfo(name)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise ValueError(f"неизвестный часовой пояс {name!r}, пример: Europe/Moscow") from None
+        return name
 
     @field_validator("database_url")
     @classmethod

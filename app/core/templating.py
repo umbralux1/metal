@@ -1,5 +1,6 @@
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from fastapi.templating import Jinja2Templates
 
@@ -16,6 +17,13 @@ def format_rub(kop: int | None) -> str:
     rub, rest = divmod(int(kop), 100)
     whole = f"{rub:,}".replace(",", " ")
     return f"{whole},{rest:02d} ₽" if rest else f"{whole} ₽"
+
+
+def format_local_time(moment: datetime | None) -> str:
+    """Время из базы → «15.01.2030 01:30» в часовом поясе сайта (TIMEZONE)."""
+    if moment is None:
+        return ""
+    return moment.astimezone(ZoneInfo(settings.timezone)).strftime("%d.%m.%Y %H:%M")
 
 
 def format_decimal(value) -> str:
