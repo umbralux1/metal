@@ -56,18 +56,17 @@
 но уже введённые телефон, адрес и имя пропадают (их нельзя класть в адресную строку). Решение — пересчёт
 без перезагрузки через `fetch` (ответ — блок машин), а GET оставить для браузеров без JavaScript.
 
-**`app/cart/router.py` растёт и не проверяется mypy** (в `ignore_errors`). В нём теперь и подбор машин
-для страницы (`DeliveryOptions`, `_delivery_options`). Вынести страницу корзины и оформление в `app/cart/service.py`
-с моделями чтения и убрать файл из исключений mypy.
+**Позиции корзины держат ORM-объект товара.** `Line.product` в `app/cart/service.py` — модель `Product`
+каталога, шаблоны корзины читают её поля. Заменить моделью чтения (dataclass с нужными полями) вместе
+с остальными страницами.
 
 ## Типы
 
-mypy не проверяет 7 файлов — `ignore_errors` в `pyproject.toml`. Ошибки на 22.10.2026:
+mypy не проверяет 6 файлов — `ignore_errors` в `pyproject.toml`. Ошибки на 22.10.2026:
 
 | Файл | Ошибок | В чём дело |
 |---|---|---|
 | `app/admin/views.py` | 7 | Временные атрибуты на моделях (`_old_path`, `_price_input`), словари подписей |
-| `app/cart/router.py` | 6 | `Product \| None` без проверки на `None` |
 | `app/catalog/drawings.py` | 7 | Размеры `Decimal \| None` передаются как числа |
 | `app/catalog/calculator.py` | 3 | То же |
 | `app/catalog/landings.py` | 2 | Переменная меняет тип с `Decimal` на `str` |
@@ -88,3 +87,9 @@ mypy не проверяет 7 файлов — `ignore_errors` в `pyproject.to
 разметка товаров) переехало в `app/catalog/seo.py`, `sitemap.xml` — в `app/pages/router.py`. `seo` больше
 не импортирует каталог и стоит в контракте слоёв ниже него. HTML ключевых страниц и `sitemap.xml` до и после
 переноса совпали побайтно.
+
+**`app/cart/router.py` разнесён по файлам (исправлено 22.10.2026).** Чтение позиций, подбор машин и сохранение
+заказа — в `app/cart/service.py` (`list_cart_lines`, `quote_cart_delivery`, `create_order`), выбор машины и снимок
+заказа — чистые функции в `app/cart/checkout.py` (`choose_vehicle`, `order_snapshot`, `order_comment`), в роутере
+остался только HTTP. Весь `app/cart` проверяется строгим mypy. Ответы корзины (статусы, редиректы, HTML) и заявки
+в базе до и после совпали побайтно.

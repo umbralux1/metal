@@ -1,10 +1,11 @@
 """Форма оформления заказа: проверка на входе (Pydantic), дальше — проверенные данные."""
 
 from decimal import Decimal, InvalidOperation
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, model_validator
 
+from app.delivery.selection import VehicleQuote
 from app.leads.inn import is_valid_inn
 from app.leads.router import normalize_phone
 
@@ -100,3 +101,52 @@ class CheckoutForm(BaseModel):
         if self.buyer_type == "company":
             return {"type": "company", "company_name": self.company_name, "inn": self.inn}
         return {"type": "person"}
+
+
+def choose_vehicle(form: CheckoutForm, quotes: list[VehicleQuote]) -> VehicleQuote | None:
+    """Выбранная машина. Не выбрана, выключена или не берёт груз — CheckoutError; ни одна не берёт — None."""
+    if form.delivery != "delivery" or not any(q.fits for q in quotes):
+        return None
+    quote = next((q for q in quotes if str(q.vehicle.id) == form.vehicle_id), None)
+    if quote is None:
+        raise CheckoutError("Выберите машину для доставки")
+    if not quote.fits:
+        raise CheckoutError(f"Машина «{quote.vehicle.name}» не подходит для этого заказа — выберите другую")
+    return quote
+
+
+def order_snapshot(
+    form: CheckoutForm, items: list[dict[str, Any]], goods_kop: int, quote: VehicleQuote | None
+) -> dict[str, Any]:
+    """Снимок заказа для заявки (`Lead.calc`): позиции, доставка, покупатель, суммы в копейках."""
+    calc: dict[str, Any] = {
+        "kind": "cart",
+        "items": items,
+        "delivery": form.delivery,
+        "address": form.address if form.delivery == "delivery" else "",
+        "buyer": form.buyer(),
+        "payment": form.payment,
+        "goods_kop": goods_kop,
+        "delivery_kop": 0,
+    }
+    if form.delivery == "delivery":
+        distance = form.distance()
+        calc["vehicle"] = quote and {
+            "id": quote.vehicle.id,
+            "name": quote.vehicle.name,
+            "distance_km": f"{distance.normalize():f}" if distance is not None else None,
+            "price_kop": quote.price_kop,
+        }
+        calc["delivery_kop"] = quote.price_kop if quote else None
+    calc["total_kop"] = goods_kop + (calc["delivery_kop"] or 0)
+    return calc
+
+
+def order_comment(form: CheckoutForm) -> str:
+    """Комментарий заявки: способ получения, адрес, комментарий покупателя."""
+    parts = [DELIVERY[form.delivery]]
+    if form.delivery == "delivery":
+        parts.append(form.address)
+    if form.comment:
+        parts.append(form.comment)
+    return ". ".join(parts)

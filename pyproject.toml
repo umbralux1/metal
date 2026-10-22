@@ -81,7 +81,7 @@ files = ["app"]
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["app.delivery.*"]
+module = ["app.delivery.*", "app.cart.*"]
 # strict = true в overrides mypy не поддерживает — его флаги для модуля по отдельности
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
@@ -94,7 +94,6 @@ strict_equality = true
 [[tool.mypy.overrides]]
 module = [
     "app.admin.views",
-    "app.cart.router",
     "app.catalog.calculator",
     "app.catalog.drawings",
     "app.catalog.landings",

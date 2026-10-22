@@ -5,6 +5,7 @@
 подменить содержимое руками.
 """
 
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 
 from itsdangerous import BadSignature, URLSafeSerializer
@@ -45,7 +46,7 @@ class CartItem:
         )
 
     @classmethod
-    def from_form(cls, product_id: int, form) -> "CartItem":
+    def from_form(cls, product_id: int, form: Mapping[str, object]) -> "CartItem":
         return cls(
             product_id=product_id,
             unit=str(form.get("unit") or "m")[:4],
