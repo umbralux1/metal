@@ -170,6 +170,8 @@ def sheets(noun: str, ton: int, rows: list[tuple[float, int, int]], gost: str, g
                 thickness_mm=_d(t, "0.01"),
                 steel_grade=grade,
                 gost=gost,
+                weight_per_piece_kg=D(str(round(sheet_kg, 1))),
+                piece_length_m=D(max(w, length)) / 1000,
                 attrs={"format": f"{w}×{length}", "sheet_kg": round(sheet_kg, 1)},
             )
         )
@@ -849,6 +851,7 @@ def _tree() -> list[Node]:
                     diameter_mm=D(d),
                     thickness_mm=_d(t, "0.01"),
                     steel_grade="Ст3",
+                    piece_length_m=D(length) / 1000,  # вес сваи неизвестен — не выдумываем
                     attrs={"profile": "pile", "length_mm": length},
                 )
                 for d, t, length, price in (

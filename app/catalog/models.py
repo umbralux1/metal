@@ -4,6 +4,7 @@ from typing import Any
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Enum,
     ForeignKey,
     Index,
@@ -84,6 +85,8 @@ class Product(TimestampMixin, SeoMixin, Base):
             postgresql_using="gin",
             postgresql_ops={"search_text": "gin_trgm_ops"},
         ),
+        CheckConstraint("weight_per_piece_kg > 0", name="weight_per_piece_positive"),
+        CheckConstraint("piece_length_m > 0", name="piece_length_positive"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -101,6 +104,9 @@ class Product(TimestampMixin, SeoMixin, Base):
     thickness_mm: Mapped[Decimal | None] = mapped_column(Numeric(8, 2))
     length_m: Mapped[Decimal | None] = mapped_column(Numeric(8, 3))
     weight_per_m_kg: Mapped[Decimal | None] = mapped_column(Numeric(10, 4))
+    # Штучные товары (лист, профнастил, свая): для подбора машины доставки. Пусто — неизвестно
+    weight_per_piece_kg: Mapped[Decimal | None] = mapped_column(Numeric(10, 3))
+    piece_length_m: Mapped[Decimal | None] = mapped_column(Numeric(6, 3))
 
     base_unit: Mapped[Unit] = mapped_column(_unit_enum(), default=Unit.METER)
     in_stock: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")

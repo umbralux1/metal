@@ -145,6 +145,8 @@ class ProductAdmin(ModelView, model=Product):
         "thickness_mm": "Толщина / стенка, мм",
         "length_m": "Длина прутка / трубы, м",
         "weight_per_m_kg": "Вес 1 м, кг",
+        "weight_per_piece_kg": "Вес 1 шт., кг",
+        "piece_length_m": "Длина 1 шт., м",
         "base_unit": "Основная единица продажи",
         "attrs": "Доп. свойства (JSON)",
         "path": "Адрес",
@@ -166,6 +168,8 @@ class ProductAdmin(ModelView, model=Product):
         Product.thickness_mm,
         Product.length_m,
         Product.weight_per_m_kg,
+        Product.weight_per_piece_kg,
+        Product.piece_length_m,
         Product.base_unit,
         Product.in_stock,
         Product.is_active,
@@ -181,6 +185,12 @@ class ProductAdmin(ModelView, model=Product):
         "base_unit": {"choices": UNIT_CHOICES, "description": "В ней считается цена «от» и итог калькулятора."},
         "length_m": {"description": "Нужна для расчёта прутков и резки в калькуляторе."},
         "weight_per_m_kg": {"description": "Нужен для пересчёта в килограммы и цены за тонну."},
+        "weight_per_piece_kg": {
+            "description": "Для штучных товаров (лист, свая): по нему подбирается машина доставки."
+        },
+        "piece_length_m": {
+            "description": "Самая длинная сторона одной штуки: лист 1250×2500 — 2,5 м. Для подбора машины."
+        },
         **{k: v for k, v in SEO_HELP.items() if k != "slug"},
     }
     form_widget_args = {"seo_text": {"rows": 10}}
