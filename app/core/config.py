@@ -85,6 +85,9 @@ class Settings(BaseSettings):
     cut_price_kop: int = 5000
     ton_price_from_kg: int = 1000
 
+    # Доставка: дальше этого расстояния цену не считаем — «стоимость уточнит менеджер»
+    delivery_max_km: int = 200
+
     @property
     def phones(self) -> list[str]:
         """Основной телефон первым, затем дополнительные (без повторов)."""
