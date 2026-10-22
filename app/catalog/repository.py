@@ -3,8 +3,9 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import ColumnElement, Select, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.catalog.models import Category, FilterLanding, Price, Product, Redirect
 from app.catalog.utils import normalize_search
@@ -46,6 +47,25 @@ def _apply_filters(stmt: Select, filters: dict[str, Any]) -> Select:
     return stmt
 
 
+def visible_category(category: type[Category] = Category) -> ColumnElement[bool]:
+    """Раздел виден, если включены он сам и все разделы выше: выключенный раздел прячет всё, что внутри."""
+    hidden = aliased(Category)
+    return ~exists().where(
+        hidden.is_active.is_(False),
+        or_(category.path == hidden.path, category.path.startswith(hidden.path.concat("/"))),
+    )
+
+
+def visible_product() -> ColumnElement[bool]:
+    """Товар виден, если включён он сам и его раздел виден."""
+    return Product.is_active.is_(True) & Product.category_id.in_(select(Category.id).where(visible_category()))
+
+
+def visible_landing() -> ColumnElement[bool]:
+    """Страница размера видна, если виден её раздел."""
+    return FilterLanding.category_id.in_(select(Category.id).where(visible_category()))
+
+
 def _in_category(category_path: str):
     """Товары раздела и всех его подразделов — по разделу товара, а не по адресу.
 
@@ -59,17 +79,15 @@ def _in_category(category_path: str):
 
 
 async def get_category(session: AsyncSession, path: str) -> Category | None:
-    stmt = select(Category).where(Category.path == path, Category.is_active.is_(True))
-    return await session.scalar(stmt)
+    return await session.scalar(select(Category).where(Category.path == path, visible_category()))
 
 
 async def get_landing(session: AsyncSession, path: str) -> FilterLanding | None:
-    return await session.scalar(select(FilterLanding).where(FilterLanding.path == path))
+    return await session.scalar(select(FilterLanding).where(FilterLanding.path == path, visible_landing()))
 
 
 async def get_product(session: AsyncSession, path: str) -> Product | None:
-    stmt = select(Product).where(Product.path == path, Product.is_active.is_(True))
-    return await session.scalar(stmt)
+    return await session.scalar(select(Product).where(Product.path == path, visible_product()))
 
 
 async def get_redirect(session: AsyncSession, from_path: str) -> Redirect | None:
@@ -101,6 +119,7 @@ async def category_landings(session: AsyncSession, category: Category) -> list[F
         .where(
             FilterLanding.is_indexable.is_(True),
             FilterLanding.path.startswith(category.path + "/", autoescape=True),
+            visible_landing(),
         )
         .order_by(FilterLanding.sort, FilterLanding.name)
     )
@@ -128,7 +147,7 @@ async def same_size_products(session: AsyncSession, landing: FilterLanding, excl
         select(Product)
         .where(
             Product.path.startswith(landing.path + "/", autoescape=True),
-            Product.is_active.is_(True),
+            visible_product(),
             Product.id != exclude.id,
         )
         .order_by(Product.thickness_mm, Product.name)
@@ -151,7 +170,7 @@ async def list_products(
     page: int = 1,
     page_size: int = 24,
 ) -> ProductPage:
-    base = select(Product).where(_in_category(category_path), Product.is_active.is_(True))
+    base = select(Product).where(_in_category(category_path), visible_product())
     base = _apply_filters(base, filters or {})
 
     total = await session.scalar(select(func.count()).select_from(base.subquery())) or 0
@@ -166,7 +185,7 @@ async def min_price_kop(session: AsyncSession, category_path: str, filters: dict
     stmt = (
         select(func.min(Price.amount_kop))
         .join(Product, Price.product_id == Product.id)
-        .where(_in_category(category_path), Product.is_active.is_(True), Price.unit == Product.base_unit)
+        .where(_in_category(category_path), visible_product(), Price.unit == Product.base_unit)
     )
     stmt = _apply_filters(stmt, filters or {})
     return await session.scalar(stmt)
@@ -192,7 +211,7 @@ async def search_products(
     tokens = norm.split()[:6]
     if not tokens:
         return []
-    stmt = select(Product).where(Product.is_active.is_(True))
+    stmt = select(Product).where(visible_product())
     for i, token in enumerate(tokens):
         stmt = stmt.where(_token_filter(Product.search_text, token, prefix_last and i == len(tokens) - 1))
     stmt = stmt.order_by(func.similarity(Product.search_text, norm).desc(), Product.name).limit(limit)
@@ -219,7 +238,7 @@ async def suggest(session: AsyncSession, query: str, limit_products: int = 6) ->
     items: list[Suggestion] = []
 
     if words and len(words) == len(tokens):
-        cats = select(Category).where(Category.is_active.is_(True))
+        cats = select(Category).where(visible_category())
         for word in words:
             cats = cats.where(func.lower(Category.name).contains(word, autoescape=True))
         for c in await session.scalars(cats.order_by(func.length(Category.path), Category.sort).limit(3)):
@@ -227,7 +246,7 @@ async def suggest(session: AsyncSession, query: str, limit_products: int = 6) ->
 
     # В названиях посадочных размер записан кириллической «х»: «Труба профильная 40х20»
     landing_text = func.regexp_replace(func.lower(FilterLanding.name), r"(\d)\s*[хx×]\s*(\d)", r"\1x\2", "g")
-    landings = select(FilterLanding).where(FilterLanding.is_indexable.is_(True))
+    landings = select(FilterLanding).where(FilterLanding.is_indexable.is_(True), visible_landing())
     for i, token in enumerate(tokens):
         landings = landings.where(_token_filter(landing_text, token, prefix=i == len(tokens) - 1))
     for item in await session.scalars(landings.order_by(FilterLanding.sort, FilterLanding.name).limit(3)):
@@ -241,17 +260,19 @@ async def suggest(session: AsyncSession, query: str, limit_products: int = 6) ->
 
 
 async def inactive_parent_url(session: AsyncSession, path: str) -> str | None:
-    """Выключенный товар или раздел: куда перенаправить (ближайший активный раздел выше или каталог)."""
-    hidden = await session.scalar(select(Product.id).where(Product.path == path, Product.is_active.is_(False)))
-    hidden = hidden or await session.scalar(
-        select(Category.id).where(Category.path == path, Category.is_active.is_(False))
+    """Скрытый товар, раздел или страница размера (сам выключен или выключен раздел выше): куда перенаправить —
+    ближайший видимый раздел выше или каталог. Адреса нет вовсе — None (будет 404)."""
+    exists_hidden = (
+        await session.scalar(select(Product.id).where(Product.path == path, ~visible_product()))
+        or await session.scalar(select(Category.id).where(Category.path == path, ~visible_category()))
+        or await session.scalar(select(FilterLanding.id).where(FilterLanding.path == path, ~visible_landing()))
     )
-    if not hidden:
+    if not exists_hidden:
         return None
     parts = path.split("/")[:-1]
     while parts:
         candidate = "/".join(parts)
-        if await session.scalar(select(Category.id).where(Category.path == candidate, Category.is_active.is_(True))):
+        if await session.scalar(select(Category.id).where(Category.path == candidate, visible_category())):
             return f"/catalog/{candidate}/"
         parts.pop()
     return "/catalog/"

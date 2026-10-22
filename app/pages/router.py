@@ -4,6 +4,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog.models import FilterLanding
+from app.catalog.repository import visible_landing
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.maps import yandex_map
@@ -26,7 +27,10 @@ async def home(request: Request, session: AsyncSession = Depends(get_session)):
         robots=robots_for(request),
     )
     landings = await session.scalars(
-        select(FilterLanding).where(FilterLanding.is_indexable.is_(True)).order_by(FilterLanding.sort).limit(12)
+        select(FilterLanding)
+        .where(FilterLanding.is_indexable.is_(True), visible_landing())
+        .order_by(FilterLanding.sort)
+        .limit(12)
     )
     return templates.TemplateResponse(
         request,

@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog.models import Category, FilterLanding, Product
+from app.catalog.repository import visible_category, visible_landing, visible_product
 from app.core.config import settings
 from app.core.db import get_session
 from app.seo.meta import absolute
@@ -47,12 +48,16 @@ def _url(loc: str, lastmod: datetime | None = None) -> str:
 async def sitemap_xml(session: AsyncSession = Depends(get_session)) -> Response:
     """Только индексируемые страницы. При росте каталога разбить на sitemap-index по типам."""
     urls = [_url("/"), _url("/catalog/"), _url("/contacts/"), _url("/delivery/")]
-    for c in await session.scalars(select(Category).where(Category.is_active.is_(True)).order_by(Category.path)):
+    for c in await session.scalars(select(Category).where(visible_category()).order_by(Category.path)):
         urls.append(_url(c.url, c.updated_at))
-    landings = select(FilterLanding).where(FilterLanding.is_indexable.is_(True)).order_by(FilterLanding.path)
+    landings = (
+        select(FilterLanding)
+        .where(FilterLanding.is_indexable.is_(True), visible_landing())
+        .order_by(FilterLanding.path)
+    )
     for landing in await session.scalars(landings):
         urls.append(_url(landing.url, landing.updated_at))
-    for p in await session.scalars(select(Product).where(Product.is_active.is_(True)).order_by(Product.path)):
+    for p in await session.scalars(select(Product).where(visible_product()).order_by(Product.path)):
         urls.append(_url(p.url, p.updated_at))
     body = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'

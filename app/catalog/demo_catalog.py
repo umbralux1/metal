@@ -187,6 +187,14 @@ class Node:
     name: str
     items: list[Item] = field(default_factory=list)
     children: list["Node"] = field(default_factory=list)
+    active: bool = True  # выключенный раздел скрывает всё, что внутри
+
+
+# Разделы, скрытые на запуске (решение от 22.10.2026, вернуть позже): создаются выключенными.
+# В уже работающей базе их выключила миграция 0006. Вернуть — галочка «Активен» у раздела в админке.
+HIDDEN_AT_LAUNCH = frozenset(
+    {"shtaketnik", "zabory", "krepezh", "fitingi", "stroymaterialy", "petli", "profnastil", "zaglushki"}
+)
 
 
 def N(slug: str, name: str, items: list[Item] | None = None, children: list[Node] | None = None) -> Node:
@@ -194,6 +202,13 @@ def N(slug: str, name: str, items: list[Item] | None = None, children: list[Node
 
 
 def _tree() -> list[Node]:
+    roots = _all_roots()
+    for node in roots:
+        node.active = node.slug not in HIDDEN_AT_LAUNCH
+    return roots
+
+
+def _all_roots() -> list[Node]:
     a500 = "ГОСТ 34028-2016"
     return [
         N(
@@ -1024,6 +1039,7 @@ async def sync_demo_catalog(
                 path=path,
                 name=node.name,
                 sort=sort,
+                is_active=node.active,
                 parent=categories.get(parent_path) if parent_path else None,
             )
             session.add(category)
