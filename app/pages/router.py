@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.core.maps import yandex_map
 from app.core.templating import templates
+from app.delivery.service import list_active_vehicles
 from app.seo import jsonld
 from app.seo.meta import PageMeta, absolute, city_prep, robots_for
 
@@ -57,6 +58,30 @@ async def contacts(request: Request):
             "map": yandex_map(),
             "breadcrumbs": crumbs,
             "jsonld": [jsonld.to_script(jsonld.local_business()), jsonld.to_script(jsonld.breadcrumbs(crumbs))],
+        },
+    )
+
+
+@router.get("/delivery/", response_class=HTMLResponse, name="delivery")
+async def delivery(request: Request, session: AsyncSession = Depends(get_session)):
+    meta = PageMeta(
+        title=f"Доставка металлопроката по {settings.city_prepositional} и области: тарифы | {settings.site_name}",
+        description=f"Доставка металла грузовиком, манипулятором и длинномером. Цены по машинам, "
+        f"расчёт по километрам. ☎ {settings.phone}",
+        h1="Доставка металлопроката",
+        canonical=absolute("/delivery/"),
+        robots=robots_for(request),
+    )
+    crumbs = [("Главная", "/"), ("Доставка", "/delivery/")]
+    return templates.TemplateResponse(
+        request,
+        "delivery.html",
+        {
+            "meta": meta,
+            "vehicles": await list_active_vehicles(session),
+            "max_km": settings.delivery_max_km,
+            "breadcrumbs": crumbs,
+            "jsonld": [jsonld.to_script(jsonld.breadcrumbs(crumbs))],
         },
     )
 

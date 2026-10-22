@@ -62,6 +62,7 @@ source_modules = [
     "app.catalog.landing_rules",
     "app.delivery.pricing",
     "app.delivery.cargo",
+    "app.delivery.selection",
 ]
 forbidden_modules = ["sqlalchemy", "httpx", "fastapi", "starlette", "app.core.db", "app.core.config"]
 

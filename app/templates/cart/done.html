@@ -1,14 +1,27 @@
 {% extends "base.html" %}
 {% block content %}
+{% set calc = lead.calc %}
 <h1>{{ meta.h1 }}</h1>
 <div class="lead-done" role="status">
-  <p><strong>Заказ №{{ lead.id }} принят — {{ lead.calc.total_kop | rub }}.</strong></p>
-  <p>Перезвоним в течение 15 минут в рабочее время, подтвердим наличие и стоимость доставки. Если срочно — <a href="{{ phone_href(settings.phone) }}">{{ settings.phone }}</a>.</p>
+  <p><strong>Заказ №{{ lead.id }} принят — {{ calc.total_kop | rub }}.</strong></p>
+  <p>Перезвоним в течение 15 минут в рабочее время, подтвердим наличие{% if calc.get('delivery') == 'delivery' %} и доставку{% endif %}. Если срочно — <a href="{{ phone_href(settings.phone) }}">{{ settings.phone }}</a>.</p>
 </div>
 <ul class="order-items">
-  {% for item in lead.calc['items'] %}
+  {% for item in calc['items'] %}
   <li><a href="{{ item.url }}">{{ item.name }}</a><span>{{ item.total_kop | rub }}</span></li>
   {% endfor %}
 </ul>
+<dl class="order-summary">
+  <dt>Товары</dt><dd>{{ calc.get('goods_kop', calc.total_kop) | rub }}</dd>
+  {% if calc.get('delivery') == 'delivery' %}
+  {% set vehicle = calc.get('vehicle') %}
+  <dt>Доставка{% if vehicle %}: {{ vehicle.name }}, {{ vehicle.distance_km }} км{% endif %}</dt>
+  <dd>{% if calc.get('delivery_kop') is not none %}{{ calc.delivery_kop | rub }}{% elif vehicle %}стоимость уточнит менеджер{% else %}машину и рейсы подберёт менеджер{% endif %}</dd>
+  {% else %}
+  <dt>Самовывоз со склада</dt><dd>0 ₽</dd>
+  {% endif %}
+  <dt>Оплата</dt><dd>{{ payments.get(calc.get('payment', 'cash')) }}</dd>
+  <dt>Итого с доставкой</dt><dd><strong>{{ calc.total_kop | rub }}</strong></dd>
+</dl>
 <p><a href="/catalog/">Вернуться в каталог</a></p>
 {% endblock %}

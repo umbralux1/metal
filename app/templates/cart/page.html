@@ -50,10 +50,12 @@
 
   <aside class="cart-summary" aria-labelledby="checkout-title">
     <div class="buy-card">
-      <p class="cart-total"><span>Итого</span><strong>{{ total_kop | rub }}</strong></p>
-      <p class="muted small">Доставку менеджер рассчитает по адресу и сообщит до оплаты.</p>
+      <p class="cart-total"><span>Товары</span><strong>{{ total_kop | rub }}</strong></p>
       <h2 id="checkout-title">Оформление заказа</h2>
       {% if error %}<p class="calc-error" role="alert">{{ error }}</p>{% endif %}
+      {# Пересчёт доставки без JavaScript: GET только с расстоянием — телефон и имя не попадают в адресную строку.
+         Поле и кнопка стоят внутри формы заказа, но принадлежат этой форме (атрибут form) #}
+      <form method="get" action="/cart/" id="distance-form"></form>
       <form method="post" action="/cart/checkout/" class="checkout-form">
         <fieldset class="delivery-choice">
           <legend>Получение</legend>
@@ -61,15 +63,64 @@
           <label class="check"><input type="radio" name="delivery" value="{{ key }}" {{ 'checked' if values.get('delivery') == key }}> {{ label }}</label>
           {% endfor %}
         </fieldset>
-        <label class="field address-field"><span>Адрес доставки</span>
+        <label class="field address-field delivery-only"><span>Адрес доставки</span>
           <input name="address" autocomplete="street-address" placeholder="Город, улица, дом или участок" value="{{ values.get('address', '') }}">
         </label>
+        <div class="distance-form delivery-only">
+          <label class="field"><span>Расстояние до объекта, км</span>
+            <input form="distance-form" name="distance_km" inputmode="decimal" autocomplete="off" placeholder="например, 18" value="{{ values.get('distance_km', '') }}">
+          </label>
+          <button form="distance-form" class="btn-link" type="submit">Посчитать доставку</button>
+          <p class="muted small">Посчитайте по карте от склада до объекта. <a href="/delivery/">Тарифы доставки</a></p>
+        </div>
+        <input type="hidden" name="distance_km" value="{{ values.get('distance_km', '') }}">
+        <fieldset class="vehicle-choice delivery-only">
+          <legend>Машина</legend>
+          {% if options.distance_error %}<p class="calc-error">{{ options.distance_error }}</p>
+          {% elif options.distance_km is none %}<p class="muted small">Укажите расстояние, чтобы увидеть цены доставки.</p>
+          {% elif options.beyond_max %}<p class="muted small">Дальше {{ options.max_km }} км стоимость доставки уточнит менеджер.</p>{% endif %}
+          {% if not options.cargo.complete %}<p class="muted small">Машину подтвердит менеджер: у части товаров не указан вес или длина.</p>
+          {% elif not options.any_fits %}<p class="muted small">Ни одна машина не увезёт заказ за один рейс — менеджер предложит несколько рейсов.</p>{% endif %}
+          {% for q in options.quotes %}
+          <label class="vehicle-card{% if not q.fits %} is-unfit{% endif %}">
+            <input type="radio" name="vehicle_id" value="{{ q.vehicle.id }}"{% if not q.fits %} disabled{% elif values.get('vehicle_id') == q.vehicle.id|string %} checked{% endif %}>
+            <span class="vehicle-name">{{ q.vehicle.name }}</span>
+            <span class="vehicle-facts muted small">до {{ q.vehicle.max_weight_kg | num }} кг, кузов {{ q.vehicle.max_length_m | num }} м{% if q.vehicle.self_unloading %}, выгрузка силами покупателя{% else %}, выгрузка краном{% endif %}</span>
+            {% if not q.fits_weight %}<span class="vehicle-why">Не увезёт: заказ {{ options.cargo.weight_kg | num }} кг</span>
+            {% elif not q.fits_length %}<span class="vehicle-why">Не влезет: длина {{ options.cargo.max_length_m | num }} м</span>
+            {% elif q.price_kop is not none %}<strong class="vehicle-price">{{ q.price_kop | rub }}</strong>{% endif %}
+          </label>
+          {% endfor %}
+          {% if options.hint %}
+          <p class="cut-hint"><strong>Дешевле с резкой:</strong> порежем прутки до {{ options.hint.cut_to_m | num }} м —
+            повезёт «{{ options.hint.vehicle.name }}» за {{ options.hint.price_kop | rub }} вместо {{ options.hint.instead_kop | rub }}.
+            Резка — {{ settings.cut_price_kop | rub }} за рез, включите её в позиции.</p>
+          {% endif %}
+        </fieldset>
         <label class="field"><span>Телефон</span>
           <input name="phone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="+7 916 123-45-67" value="{{ values.get('phone', '') }}">
         </label>
         <label class="field"><span>Имя</span>
           <input name="name" autocomplete="given-name" value="{{ values.get('name', '') }}">
         </label>
+        <fieldset class="buyer-choice">
+          <legend>Покупатель</legend>
+          {% for key, label in buyer_types.items() %}
+          <label class="check"><input type="radio" name="buyer_type" value="{{ key }}" {{ 'checked' if values.get('buyer_type', 'person') == key }}> {{ label }}</label>
+          {% endfor %}
+        </fieldset>
+        <label class="field company-only"><span>Название организации</span>
+          <input name="company_name" autocomplete="organization" value="{{ values.get('company_name', '') }}">
+        </label>
+        <label class="field company-only"><span>ИНН</span>
+          <input name="inn" inputmode="numeric" autocomplete="off" placeholder="10 или 12 цифр" value="{{ values.get('inn', '') }}">
+        </label>
+        <fieldset class="payment-choice">
+          <legend>Оплата</legend>
+          {% for key, label in payments.items() %}
+          <label class="check{% if key == 'invoice' %} company-only{% endif %}"><input type="radio" name="payment" value="{{ key }}" {{ 'checked' if values.get('payment', 'cash') == key }}> {{ label }}</label>
+          {% endfor %}
+        </fieldset>
         <label class="field"><span>Комментарий</span>
           <input name="comment" placeholder="удобное время, подъезд для машины" value="{{ values.get('comment', '') }}">
         </label>
@@ -84,15 +135,23 @@
 {% endblock %}
 {% block scripts %}
 <script>
-  // Адрес нужен только для доставки
+  // Доставка: адрес, расстояние и машины; организация: название, ИНН и оплата по счёту
   (function () {
     var form = document.querySelector(".checkout-form");
     if (!form) return;
-    var field = form.querySelector(".address-field");
+    var distance = document.querySelector('input[form="distance-form"][name=distance_km]');
+    var hidden = form.querySelector("input[type=hidden][name=distance_km]");
     var sync = function () {
       var delivery = form.querySelector('input[name="delivery"]:checked');
-      field.hidden = delivery && delivery.value === "pickup";
+      var buyer = form.querySelector('input[name="buyer_type"]:checked');
+      var pickup = delivery && delivery.value === "pickup";
+      var company = buyer && buyer.value === "company";
+      document.querySelectorAll(".delivery-only").forEach(function (el) { el.hidden = pickup; });
+      form.querySelectorAll(".company-only").forEach(function (el) { el.hidden = !company; });
+      var invoice = form.querySelector('input[name="payment"][value="invoice"]');
+      if (!company && invoice && invoice.checked) form.querySelector('input[name="payment"][value="cash"]').checked = true;
     };
+    if (distance && hidden) distance.addEventListener("input", function () { hidden.value = distance.value; });
     form.addEventListener("change", sync);
     sync();
   })();

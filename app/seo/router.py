@@ -46,7 +46,7 @@ def _url(loc: str, lastmod: datetime | None = None) -> str:
 @router.get("/sitemap.xml", include_in_schema=False)
 async def sitemap_xml(session: AsyncSession = Depends(get_session)) -> Response:
     """Только индексируемые страницы. При росте каталога разбить на sitemap-index по типам."""
-    urls = [_url("/"), _url("/catalog/"), _url("/contacts/")]
+    urls = [_url("/"), _url("/catalog/"), _url("/contacts/"), _url("/delivery/")]
     for c in await session.scalars(select(Category).where(Category.is_active.is_(True)).order_by(Category.path)):
         urls.append(_url(c.url, c.updated_at))
     landings = select(FilterLanding).where(FilterLanding.is_indexable.is_(True)).order_by(FilterLanding.path)

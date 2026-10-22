@@ -14,6 +14,7 @@ from wtforms.validators import Optional as OptionalValue
 from app.admin.auth import AdminAuth
 from app.admin.delivery import DeliveryVehicleAdmin
 from app.admin.money import kop_to_rub, rub_to_kop
+from app.cart.checkout import PAYMENTS
 from app.catalog import paths
 from app.catalog.landings import generate_landings
 from app.catalog.models import Category, FilterLanding, Price, Product, Redirect, Unit
@@ -468,11 +469,42 @@ def _lead_calc_html(calc: dict) -> Markup:
         for item in calc.get("items", [])
     )
     delivery = "Доставка: " + calc.get("address", "") if calc.get("delivery") == "delivery" else "Самовывоз"
-    return Markup(
+    table = Markup(
         "<table class='table table-sm'><thead><tr><th>Товар</th><th>Количество</th><th>Резка</th>"
         "<th>Сумма</th></tr></thead>"
-        "<tbody>{}</tbody></table><p><strong>Итого: {}</strong> · {}</p>"
-    ).format(rows, format_rub(calc.get("total_kop")), delivery)
+        "<tbody>{}</tbody></table>"
+    ).format(rows)
+    if "goods_kop" not in calc:  # заявки до доставки с выбором машины
+        return table + Markup("<p><strong>Итого: {}</strong> · {}</p>").format(
+            format_rub(calc.get("total_kop")), delivery
+        )
+    return table + Markup(
+        "<p>{}</p><p>{}</p><p>Оплата: {}</p><p>Товары: {} · Доставка: {} · <strong>Итого: {}</strong></p>"
+    ).format(
+        _lead_delivery_text(calc, delivery),
+        _lead_buyer_text(calc.get("buyer") or {}),
+        PAYMENTS.get(calc.get("payment", "cash"), "—"),
+        format_rub(calc["goods_kop"]),
+        format_rub(calc["delivery_kop"]) if calc.get("delivery_kop") is not None else "уточнить",
+        format_rub(calc.get("total_kop")),
+    )
+
+
+def _lead_delivery_text(calc: dict, delivery: str) -> str:
+    """«Доставка: адрес · Грузовик до 5 т, 18 км — 3 600 ₽»; без машины — подберёт менеджер."""
+    if calc.get("delivery") != "delivery":
+        return delivery
+    vehicle = calc.get("vehicle")
+    if not vehicle:
+        return f"{delivery} · машину и рейсы подобрать менеджеру"
+    price = format_rub(vehicle["price_kop"]) if vehicle.get("price_kop") is not None else "стоимость уточнит менеджер"
+    return f"{delivery} · {vehicle['name']}, {vehicle['distance_km']} км — {price}"
+
+
+def _lead_buyer_text(buyer: dict) -> str:
+    if buyer.get("type") == "company":
+        return f"Покупатель: {buyer.get('company_name', '')}, ИНН {buyer.get('inn', '')}"
+    return "Покупатель: частное лицо"
 
 
 class LeadAdmin(ModelView, model=Lead):

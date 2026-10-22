@@ -1,6 +1,7 @@
 """Корзина и оформление заказа. Страницы корзины не индексируются (robots.txt + X-Robots-Tag)."""
 
 from dataclasses import dataclass
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -8,20 +9,23 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cart import store
+from app.cart.cargo import line_cargo, line_cut_down_length_m, total_cargo, total_cut_down_length_m
+from app.cart.checkout import BUYER_TYPES, DELIVERY, PAYMENTS, CheckoutError, CheckoutForm, parse_distance_km
 from app.cart.store import CartItem
-from app.catalog.calculator import CalcError, CalcResult, calculate, parse_input
+from app.catalog.calculator import CalcError, CalcInput, CalcResult, calculate, parse_input
 from app.catalog.models import Product
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.templating import format_rub, templates
+from app.delivery.cargo import CargoSpec
+from app.delivery.selection import CutHint, VehicleQuote, cut_hint, quote_vehicles
+from app.delivery.service import list_active_vehicles
 from app.leads.models import Lead
 from app.leads.notify import notify_new_lead
-from app.leads.router import normalize_phone
 from app.seo.meta import PageMeta, absolute
 
 router = APIRouter()
 NOINDEX = {"X-Robots-Tag": "noindex, nofollow"}
-DELIVERY = {"delivery": "Доставка", "pickup": "Самовывоз со склада"}
 
 
 @dataclass
@@ -31,6 +35,27 @@ class Line:
     product: Product | None
     calc: CalcResult | None
     error: str | None = None
+    inp: CalcInput | None = None
+
+
+@dataclass(frozen=True)
+class DeliveryOptions:
+    """Машины под груз корзины на странице: цены, недоступные машины, подсказка про резку."""
+
+    distance_km: Decimal | None
+    distance_error: str | None
+    cargo: CargoSpec
+    quotes: list[VehicleQuote]
+    hint: CutHint | None
+    max_km: int
+
+    @property
+    def any_fits(self) -> bool:
+        return any(q.fits for q in self.quotes)
+
+    @property
+    def beyond_max(self) -> bool:
+        return self.distance_km is not None and self.distance_km > self.max_km
 
 
 def _calc(product: Product, item: CartItem) -> CalcResult:
@@ -47,10 +72,40 @@ async def _lines(session: AsyncSession, items: list[CartItem]) -> list[Line]:
             lines.append(Line(index, item, product, None, "Товар больше не продаётся — удалите его из корзины"))
             continue
         try:
-            lines.append(Line(index, item, product, _calc(product, item)))
+            inp = parse_input(item.params(), product)
+            result = calculate(product, inp, settings.cut_price_kop, settings.ton_price_from_kg)
+            lines.append(Line(index, item, product, result, inp=inp))
         except CalcError as exc:
             lines.append(Line(index, item, product, None, str(exc)))
     return lines
+
+
+async def _delivery_options(session: AsyncSession, lines: list[Line], distance_raw: str) -> DeliveryOptions:
+    """Груз корзины → машины с ценами на это расстояние и подсказка «дешевле с резкой»."""
+    ok = [(line.product, line.inp, line.calc) for line in lines if line.product and line.inp and line.calc]
+    cargo = total_cargo(line_cargo(product, inp, result) for product, inp, result in ok)
+    try:
+        distance, error = parse_distance_km(distance_raw), None
+    except CheckoutError as exc:
+        distance, error = None, str(exc)
+    quotes = quote_vehicles(await list_active_vehicles(session), cargo, distance, settings.delivery_max_km)
+    shortest = total_cut_down_length_m(line_cut_down_length_m(product, inp) for product, inp, _ in ok)
+    hint = cut_hint(quotes, shortest) if cargo.complete and shortest is not None else None
+    return DeliveryOptions(distance, error, cargo, quotes, hint, settings.delivery_max_km)
+
+
+def _cart_context(lines: list[Line], options: DeliveryOptions, values: dict[str, str]) -> dict:
+    return {
+        "meta": _meta("Корзина"),
+        "lines": lines,
+        "total_kop": sum(line.calc.total_kop for line in lines if line.calc),
+        "has_errors": any(line.error for line in lines),
+        "values": values,
+        "delivery_options": DELIVERY,
+        "buyer_types": BUYER_TYPES,
+        "payments": PAYMENTS,
+        "options": options,
+    }
 
 
 def _meta(h1: str) -> PageMeta:
@@ -122,16 +177,10 @@ async def cart_add(request: Request, session: AsyncSession = Depends(get_session
 @router.get("/cart/", response_class=HTMLResponse, include_in_schema=False)
 async def cart_page(request: Request, session: AsyncSession = Depends(get_session)):
     lines = await _lines(session, store.load(request))
-    total = sum(line.calc.total_kop for line in lines if line.calc)
-    context = {
-        "meta": _meta("Корзина"),
-        "lines": lines,
-        "total_kop": total,
-        "has_errors": any(line.error for line in lines),
-        "values": {"delivery": "delivery"},
-        "delivery_options": DELIVERY,
-    }
-    return templates.TemplateResponse(request, "cart/page.html", context, headers=NOINDEX)
+    distance = str(request.query_params.get("distance_km", ""))[:20]
+    options = await _delivery_options(session, lines, distance)
+    values = CheckoutForm(distance_km=distance).model_dump()
+    return templates.TemplateResponse(request, "cart/page.html", _cart_context(lines, options, values), headers=NOINDEX)
 
 
 @router.post("/cart/update/", include_in_schema=False)
@@ -163,73 +212,90 @@ async def cart_remove(request: Request):
 
 @router.post("/cart/checkout/", response_class=HTMLResponse, include_in_schema=False)
 async def cart_checkout(request: Request, session: AsyncSession = Depends(get_session)):
-    form = await request.form()
-    values = {k: str(form.get(k, "")).strip() for k in ("name", "phone", "comment", "delivery", "address")}
-    if values["delivery"] not in DELIVERY:
-        values["delivery"] = "delivery"
-    items = store.load(request)
-    lines = await _lines(session, items)
-    total = sum(line.calc.total_kop for line in lines if line.calc)
+    raw = await request.form()
+    form = CheckoutForm.from_form({k: str(v) for k, v in raw.items()})
+    values = form.model_dump()  # как ввёл покупатель — для повторного показа формы
+    lines = await _lines(session, store.load(request))
+    options = await _delivery_options(session, lines, form.distance_km)
 
-    def page(error: str | None, status: int = 422):
-        context = {
-            "meta": _meta("Корзина"),
-            "lines": lines,
-            "total_kop": total,
-            "has_errors": any(line.error for line in lines),
-            "values": values,
-            "delivery_options": DELIVERY,
-            "error": error,
-        }
-        return templates.TemplateResponse(request, "cart/page.html", context, status_code=status, headers=NOINDEX)
+    def page(error: str):
+        context = {**_cart_context(lines, options, values), "error": error}
+        return templates.TemplateResponse(request, "cart/page.html", context, status_code=422, headers=NOINDEX)
 
-    if form.get("website"):  # ловушка для ботов
+    if raw.get("website"):  # ловушка для ботов
         return RedirectResponse("/cart/", status_code=303)
     if not lines:
         return RedirectResponse("/cart/", status_code=303)
     if any(line.error for line in lines):
         return page("Исправьте позиции с ошибками или удалите их")
-    phone = normalize_phone(values["phone"])
-    if phone is None:
-        return page("Проверьте номер телефона: нужен российский номер, например +7 916 123-45-67")
-    if values["delivery"] == "delivery" and len(values["address"]) < 5:
-        return page("Укажите адрес доставки — город, улицу, дом или участок")
+    try:
+        form.check()
+        quote = _chosen_vehicle(form, options)
+    except CheckoutError as exc:
+        return page(str(exc))
 
-    snapshot = [
-        {
-            "product_id": line.product.id,
-            "name": line.product.name,
-            "url": line.product.url,
-            **line.item.params(),
-            **line.calc.as_dict(),
+    goods_kop = sum(line.calc.total_kop for line in lines if line.calc)
+    calc: dict = {
+        "kind": "cart",
+        "items": [
+            {
+                "product_id": line.product.id,
+                "name": line.product.name,
+                "url": line.product.url,
+                **line.item.params(),
+                **line.calc.as_dict(),
+            }
+            for line in lines
+            if line.product and line.calc
+        ],
+        "delivery": form.delivery,
+        "address": form.address if form.delivery == "delivery" else "",
+        "buyer": form.buyer(),
+        "payment": form.payment,
+        "goods_kop": goods_kop,
+        "delivery_kop": 0,
+    }
+    if form.delivery == "delivery":
+        distance = form.distance()
+        calc["vehicle"] = quote and {
+            "id": quote.vehicle.id,
+            "name": quote.vehicle.name,
+            "distance_km": f"{distance.normalize():f}" if distance is not None else None,
+            "price_kop": quote.price_kop,
         }
-        for line in lines
-    ]
-    comment_parts = [DELIVERY[values["delivery"]]]
-    if values["delivery"] == "delivery":
-        comment_parts.append(values["address"][:300])
-    if values["comment"]:
-        comment_parts.append(values["comment"][:1500])
+        calc["delivery_kop"] = quote.price_kop if quote else None
+    calc["total_kop"] = goods_kop + (calc["delivery_kop"] or 0)
+
+    comment_parts = [DELIVERY[form.delivery]]
+    if form.delivery == "delivery":
+        comment_parts.append(form.address)
+    if form.comment:
+        comment_parts.append(form.comment)
     lead = Lead(
         product_id=None,
         product_name=f"Корзина: {len(lines)} поз.",
-        name=values["name"][:120],
-        phone=phone,
+        name=form.name,
+        phone=form.phone,
         comment=". ".join(comment_parts),
-        calc={
-            "kind": "cart",
-            "items": snapshot,
-            "total_kop": total,
-            "delivery": values["delivery"],
-            "address": values["address"][:300],
-        },
+        calc=calc,
     )
     session.add(lead)
     await session.commit()
     await notify_new_lead(lead)
     request.state.cart_count = 0  # в шапке страницы «Заказ принят» корзина уже пустая
-    response = templates.TemplateResponse(
-        request, "cart/done.html", {"meta": _meta("Заказ принят"), "lead": lead, "lines": lines}, headers=NOINDEX
-    )
+    context = {"meta": _meta("Заказ принят"), "lead": lead, "lines": lines, "payments": PAYMENTS}
+    response = templates.TemplateResponse(request, "cart/done.html", context, headers=NOINDEX)
     store.save(response, request, [])  # корзина оформлена — очищаем
     return response
+
+
+def _chosen_vehicle(form: CheckoutForm, options: DeliveryOptions) -> VehicleQuote | None:
+    """Выбранная машина. Не выбрана, выключена или не берёт груз — CheckoutError; ни одна не берёт — None."""
+    if form.delivery != "delivery" or not options.any_fits:
+        return None
+    quote = next((q for q in options.quotes if str(q.vehicle.id) == form.vehicle_id), None)
+    if quote is None:
+        raise CheckoutError("Выберите машину для доставки")
+    if not quote.fits:
+        raise CheckoutError(f"Машина «{quote.vehicle.name}» не подходит для этого заказа — выберите другую")
+    return quote

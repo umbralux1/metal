@@ -218,6 +218,34 @@ p { margin: 0 0 12px; }
 .checkout-form { display: grid; gap: 12px; }
 .delivery-choice { border: 0; padding: 0; margin: 0; display: grid; gap: 4px; }
 .delivery-choice legend { font-size: 14px; color: var(--muted); margin-bottom: 4px; }
+/* Доставка в корзине: расстояние, машины, покупатель и оплата */
+.distance-form { display: grid; gap: 6px; }
+.distance-form .btn-link { justify-self: start; padding-left: 0; }
+.vehicle-choice, .buyer-choice, .payment-choice { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; min-width: 0; }
+.vehicle-choice legend, .buyer-choice legend, .payment-choice legend { font-size: 14px; color: var(--muted); margin-bottom: 4px; }
+.vehicle-card {
+  display: grid; grid-template-columns: 20px 1fr auto; gap: 2px 10px; align-items: center; padding: 10px 12px;
+  border: 1px solid var(--line-soft); border-radius: var(--radius-s); cursor: pointer;
+}
+.vehicle-card input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); grid-row: span 2; }
+.vehicle-card:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.vehicle-card.is-unfit { opacity: .6; cursor: not-allowed; }
+.vehicle-name { font-weight: 600; color: var(--ink); }
+.vehicle-facts { grid-column: 2; }
+.vehicle-price, .vehicle-why { grid-column: 3; grid-row: 1 / span 2; text-align: right; white-space: nowrap; }
+.vehicle-why { font-size: 13px; color: #b42318; white-space: normal; max-width: 120px; }
+.cut-hint { margin: 4px 0 0; padding: 10px 12px; border-radius: var(--radius-s); background: var(--accent-soft); font-size: 14px; }
+.order-summary { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; max-width: 640px; margin: 0 0 20px; }
+.order-summary dt { color: var(--muted); }
+.order-summary dd { margin: 0; text-align: right; }
+/* Страница «Доставка» */
+.delivery-page { max-width: 960px; }
+.delivery-page h2 { margin: 28px 0 10px; }
+.table-scroll { overflow-x: auto; }
+.delivery-tariffs { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line-soft); font-size: 15px; }
+.delivery-tariffs th, .delivery-tariffs td { padding: 10px 12px; border-bottom: 1px solid var(--line-soft); text-align: left; }
+.delivery-tariffs td:not(:last-child) { white-space: nowrap; }
+.delivery-tariffs th { font-size: 13px; color: var(--muted); font-weight: 600; }
 .cart-empty { display: grid; gap: 12px; justify-items: start; }
 .order-items { list-style: none; padding: 0; margin: 20px 0; max-width: 640px; }
 .order-items li { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }

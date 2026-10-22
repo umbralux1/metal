@@ -33,3 +33,20 @@ def total_cargo(parts: Iterable[CargoSpec]) -> CargoSpec:
         max_length_m=max((p.max_length_m for p in items), default=Decimal(0)),
         complete=all(p.complete for p in items),
     )
+
+
+def line_cut_down_length_m(product: Product, inp: CalcInput) -> Decimal | None:
+    """До какой длины позицию можно укоротить резкой: пруток — до любой, лист и свая — нет. None — неизвестно."""
+    if inp.cut and inp.cut_length_m:
+        return inp.cut_length_m
+    if product.length_m:
+        return Decimal(0)
+    return product.piece_length_m
+
+
+def total_cut_down_length_m(parts: Iterable[Decimal | None]) -> Decimal | None:
+    """Самая короткая длина, до которой можно укоротить весь заказ. Хоть одна позиция неизвестна — None."""
+    lengths = list(parts)
+    if any(length is None for length in lengths):
+        return None
+    return max((length for length in lengths if length is not None), default=Decimal(0))
