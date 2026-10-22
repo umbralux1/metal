@@ -202,8 +202,8 @@ def product_seo_text(product: Product) -> str:
         per_ton = round(1000 / float(w))
         sentences.append(f"Вес 1 метра — {num(w)} кг, в тонне около {per_ton} м.")
         if product.length_m:
-            piece = (w * Decimal(str(product.length_m))).quantize(Decimal("0.01"))
-            sentences.append(f"Одна штука длиной {num(product.length_m)} м весит {num(piece)} кг.")
+            piece_kg = (w * Decimal(str(product.length_m))).quantize(Decimal("0.01"))
+            sentences.append(f"Одна штука длиной {num(product.length_m)} м весит {num(piece_kg)} кг.")
     facts = [
         x
         for x in (

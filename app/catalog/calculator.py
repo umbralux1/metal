@@ -120,17 +120,15 @@ def default_input(product: Product) -> CalcInput:
 
 
 def calculate(product: Product, inp: CalcInput, cut_price_kop: int, ton_from_kg: int) -> CalcResult:
-    bar = product.length_m
     per_m = product.weight_per_m_kg
     notes: list[str] = []
     cuts = 0
     waste = Decimal(0)
+    meters: Decimal | None  # без резки у листа и штучного товара метров нет, у товара без длины — штук
+    pieces: int | None
 
     if inp.cut:
-        meters, pieces, cuts, waste = _cutting(product, inp)
-        notes.append(f"{inp.cut_count} отр. по {_num(inp.cut_length_m)} м из {pieces} шт. по {_num(bar)} м")
-        if waste > 0:
-            notes.append(f"Обрезки {_num(waste)} м отдаём вместе с заказом, в цену входит весь пруток")
+        meters, pieces, cuts, waste = _cutting(product, inp, notes)
     else:
         meters, pieces = _plain(product, inp, notes)
 
@@ -183,7 +181,7 @@ def _plain(product: Product, inp: CalcInput, notes: list[str]) -> tuple[Decimal 
     return rounded, pieces
 
 
-def _cutting(product: Product, inp: CalcInput) -> tuple[Decimal, int, int, Decimal]:
+def _cutting(product: Product, inp: CalcInput, notes: list[str]) -> tuple[Decimal, int, int, Decimal]:
     bar = product.length_m
     length, count = inp.cut_length_m, inp.cut_count
     if not bar:
@@ -204,7 +202,11 @@ def _cutting(product: Product, inp: CalcInput) -> tuple[Decimal, int, int, Decim
     # Из прутка без остатка последний отрезок получается без реза
     cuts = full * (per_bar - (1 if exact else 0)) + rest
     meters = pieces * bar
-    return meters, pieces, cuts, meters - count * length
+    waste = meters - count * length
+    notes.append(f"{count} отр. по {_num(length)} м из {pieces} шт. по {_num(bar)} м")
+    if waste > 0:
+        notes.append(f"Обрезки {_num(waste)} м отдаём вместе с заказом, в цену входит весь пруток")
+    return meters, pieces, cuts, waste
 
 
 def _price(

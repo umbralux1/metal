@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import asdict
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -21,7 +22,9 @@ router = APIRouter()
 CATALOG_ROOT = ("Каталог", "/catalog/")
 
 
-def _crumbs(categories: list[Category | FilterLanding], tail: tuple[str, str] | None = None) -> list[tuple[str, str]]:
+def _crumbs(
+    categories: Sequence[Category | FilterLanding], tail: tuple[str, str] | None = None
+) -> list[tuple[str, str]]:
     items = [("Главная", "/"), CATALOG_ROOT] + [(c.name, c.url) for c in categories]
     return items + ([tail] if tail else [])
 
