@@ -4,14 +4,16 @@ app.delivery.cargo.CargoSpec — что доставка получает на �
 app.cart.cargo — корзина переводит свои позиции в CargoSpec:
 - line_cargo(product, inp, result) — одна позиция: вес из калькулятора или штуки × «Вес 1 шт.»,
   длина — пруток, отрезок при резке или «Длина 1 шт.»;
-- total_cargo(parts) — сумма весов, самая длинная позиция, complete=False, если хоть что-то неизвестно.
+- total_cargo(parts) — сумма весов, самая длинная позиция, complete=False, если хоть что-то неизвестно;
+- line_cut_down_length_m / total_cut_down_length_m — до какой длины можно укоротить заказ резкой (подзадача 9):
+  прутки без резки — до любой (0), листы и сваи не режем, уже порезанное — длина отрезка. None — неизвестно.
 """
 
 from decimal import Decimal as D
 
 import pytest
 
-from app.cart.cargo import line_cargo, total_cargo
+from app.cart.cargo import line_cargo, line_cut_down_length_m, total_cargo, total_cut_down_length_m
 from app.catalog.calculator import CalcInput, calculate
 from app.catalog.models import Price, Product, Unit
 from app.delivery.cargo import CargoSpec
@@ -107,3 +109,30 @@ def test_cargo_spec_is_immutable():
     spec = CargoSpec(D(1), D(1), True)
     with pytest.raises(AttributeError):
         spec.weight_kg = D(2)  # type: ignore[misc]
+
+
+# ---------- До какой длины можно укоротить заказ резкой (подзадача 9) ----------
+
+
+def test_uncut_bars_can_be_cut_to_any_length(rebar):
+    assert line_cut_down_length_m(rebar, CalcInput(unit="m", quantity=D(100))) == D(0)
+
+
+def test_already_cut_bars_stay_as_cut(rebar):
+    inp = CalcInput(unit="m", cut=True, cut_length_m=D("3.9"), cut_count=10)
+    assert line_cut_down_length_m(rebar, inp) == D("3.9")
+
+
+def test_sheets_are_not_cut(sheet):
+    assert line_cut_down_length_m(sheet, CalcInput(unit="pcs", quantity=D(2))) == D("2.5")
+
+
+def test_unknown_piece_length_gives_none(sheet):
+    sheet.piece_length_m = None
+    assert line_cut_down_length_m(sheet, CalcInput(unit="pcs", quantity=D(2))) is None
+
+
+def test_total_cut_down_length_is_longest_and_unknown_wins():
+    assert total_cut_down_length_m([D(0), D("2.5"), D("3.9")]) == D("3.9")
+    assert total_cut_down_length_m([D(0), None]) is None
+    assert total_cut_down_length_m([]) == D(0)

@@ -15,6 +15,7 @@ INDEXABLE = {
     "/catalog/armatura/12-mm/": {"BreadcrumbList", "ItemList"},
     "/catalog/armatura/12-mm/12-mm-a500s/": {"BreadcrumbList", "Product"},
     "/contacts/": {"BreadcrumbList", "Store"},
+    "/delivery/": {"BreadcrumbList"},
 }
 
 # Служебные страницы: открыты людям, закрыты от индекса

@@ -9,6 +9,7 @@ from sqlalchemy import select
 from app.cart.store import COOKIE
 from app.catalog.models import Product
 from app.core.db import SessionLocal
+from app.delivery.models import DeliveryVehicle
 from app.leads.models import Lead
 from app.main import app as fastapi_app
 
@@ -91,15 +92,26 @@ async def test_checkout_creates_order_with_items_and_clears_cart(shop):
     bad_phone = await shop.post("/cart/checkout/", data={"phone": "123", "delivery": "pickup"})
     assert "Проверьте номер телефона" in bad_phone.text
 
+    # Пруток 11,7 м — по длине подходит только длинномер; 18 км укладываются в его 30 включённых: 18 500 ₽
+    async with SessionLocal() as s:
+        long_truck = await s.scalar(select(DeliveryVehicle.id).where(DeliveryVehicle.name == "Длинномер до 25 т"))
     r = await shop.post(
         "/cart/checkout/",
-        data={"phone": "8 916 123-45-67", "name": "Иван", "delivery": "delivery", "address": "Подольск, ул. Мира, 5"},
+        data={
+            "phone": "8 916 123-45-67",
+            "name": "Иван",
+            "delivery": "delivery",
+            "address": "Подольск, ул. Мира, 5",
+            "distance_km": "18",
+            "vehicle_id": long_truck,
+        },
     )
-    assert r.status_code == 200 and "Заказ №" in r.text and "1\u00a0676,03" in r.text  # 506,03 + 1170
+    assert r.status_code == 200 and "Заказ №" in r.text and "1\u00a0676,03" in r.text  # товары: 506,03 + 1170
     async with SessionLocal() as s:
         lead = await s.scalar(select(Lead).order_by(Lead.id.desc()).limit(1))
     assert lead.phone == "+79161234567" and lead.product_name == "Корзина: 2 поз."
-    assert lead.calc["kind"] == "cart" and len(lead.calc["items"]) == 2 and lead.calc["total_kop"] == 167603
+    assert lead.calc["kind"] == "cart" and len(lead.calc["items"]) == 2 and lead.calc["goods_kop"] == 167603
+    assert lead.calc["total_kop"] == 167603 + 1850000  # товары + доставка
     assert "Подольск" in lead.comment
     # Корзина очищена, и счётчик в шапке страницы «Заказ принят» уже пустой
     assert re.search(r"data-cart-count\s+hidden", r.text)
