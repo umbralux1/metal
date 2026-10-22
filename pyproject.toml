@@ -56,7 +56,13 @@ forbidden_modules = ["app.catalog", "app.cart", "app.leads", "app.seo", "app.pag
 [[tool.importlinter.contracts]]
 name = "Чистые функции: без базы, сети и веба"
 type = "forbidden"
-source_modules = ["app.seo.hours", "app.catalog.utils", "app.catalog.landing_rules", "app.delivery.pricing"]
+source_modules = [
+    "app.seo.hours",
+    "app.catalog.utils",
+    "app.catalog.landing_rules",
+    "app.delivery.pricing",
+    "app.delivery.cargo",
+]
 forbidden_modules = ["sqlalchemy", "httpx", "fastapi", "starlette", "app.core.db", "app.core.config"]
 
 # Типы: mypy в make check. Новый код — строго (app.delivery); старый — базовая проверка,
