@@ -33,7 +33,10 @@ def _is_fetch(request: Request) -> bool:
 
 @router.post("/api/lead/", response_class=HTMLResponse, include_in_schema=False)
 async def create_lead(request: Request, session: AsyncSession = Depends(get_session)):
-    form = dict(await request.form())
+    raw = await request.form()
+    if not all(isinstance(value, str) for value in raw.values()):  # файл вместо текста — так шлют только боты
+        return HTMLResponse("Неверные данные формы", status_code=422)
+    form = {key: value for key, value in raw.items() if isinstance(value, str)}
     product = await session.scalar(select(Product).where(Product.id == _int(form.get("product_id"))))
     values = {k: str(form.get(k, "")).strip() for k in ("name", "phone", "comment")}
 

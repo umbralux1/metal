@@ -95,10 +95,8 @@ strict_equality = true
 module = [
     "app.admin.views",
     "app.catalog.calculator",
-    "app.catalog.drawings",
     "app.catalog.landings",
     "app.catalog.router",
-    "app.leads.router",
 ]
 ignore_errors = true
 

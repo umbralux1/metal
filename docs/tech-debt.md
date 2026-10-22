@@ -62,16 +62,14 @@
 
 ## Типы
 
-mypy не проверяет 6 файлов — `ignore_errors` в `pyproject.toml`. Ошибки на 22.10.2026:
+mypy не проверяет 4 файла — `ignore_errors` в `pyproject.toml`. Ошибки на 23.10.2026:
 
 | Файл | Ошибок | В чём дело |
 |---|---|---|
 | `app/admin/views.py` | 7 | Временные атрибуты на моделях (`_old_path`, `_price_input`), словари подписей |
-| `app/catalog/drawings.py` | 7 | Размеры `Decimal \| None` передаются как числа |
-| `app/catalog/calculator.py` | 3 | То же |
+| `app/catalog/calculator.py` | 3 | Размеры `Decimal \| None` передаются как числа |
 | `app/catalog/landings.py` | 2 | Переменная меняет тип с `Decimal` на `str` |
 | `app/catalog/router.py` | 1 | `list[Category]` вместо `Sequence` |
-| `app/leads/router.py` | 1 | Данные формы могут содержать файл, а не строку |
 
 ## Найдено и исправлено при проверке
 
@@ -93,3 +91,8 @@ mypy не проверяет 6 файлов — `ignore_errors` в `pyproject.to
 заказа — чистые функции в `app/cart/checkout.py` (`choose_vehicle`, `order_snapshot`, `order_comment`), в роутере
 остался только HTTP. Весь `app/cart` проверяется строгим mypy. Ответы корзины (статусы, редиректы, HTML) и заявки
 в базе до и после совпали побайтно.
+
+**Две ошибки, найденные mypy (исправлено 23.10.2026).** Страница товара отдавала 500, если чертёж сечения задан
+вручную («Доп. свойства», `{"profile": "tube_rect"}`), а нужного размера нет — теперь чертёж просто не рисуется
+(`app/catalog/drawings.py`). Файл вместо текста в форме заявки давал 500 — теперь отказ 422 (`app/leads/router.py`).
+Оба файла проверяются mypy.

@@ -133,3 +133,13 @@ async def test_calc_form_has_meters_only(client):
     assert 'type="radio"' not in form and "Кг" not in form and "Штуки" not in form
     assert '<input type="hidden" name="unit" value="m">' in form
     assert "Количество, м" in form and 'placeholder="11,7"' in form
+
+
+async def test_lead_with_file_instead_of_text_is_rejected(client):
+    """Файл в поле формы (так делают боты и сканеры) — понятный отказ, а не ошибка 500."""
+    pid = await product_id()
+    before = await lead_count()
+    data = {"product_id": pid, "unit": "pcs", "phone": "8 (916) 123-45-67"}
+    r = await client.post("/api/lead/", data=data, files={"qty": ("qty.txt", b"3")}, headers=FETCH)
+    assert r.status_code == 422
+    assert await lead_count() == before

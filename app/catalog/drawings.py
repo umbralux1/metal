@@ -75,8 +75,8 @@ def _rounded_rect(x: float, y: float, w: float, h: float, r: float) -> str:
     )
 
 
-def _tube_rect(p: Product, uid: str) -> str:
-    w, h, t = float(p.width_mm), float(p.height_mm), float(p.thickness_mm)
+def _tube_rect(width_mm: Decimal, height_mm: Decimal, thickness_mm: Decimal, uid: str) -> str:
+    w, h, t = float(width_mm), float(height_mm), float(thickness_mm)
     box = 168
     scale = box / max(w, h)
     W, H = w * scale, h * scale
@@ -87,15 +87,15 @@ def _tube_rect(p: Product, uid: str) -> str:
     lead_x, lead_y = x0 + W - tv / 2, y0 + H * 0.72
     return (
         f'<path d="{outer} {inner}" fill-rule="evenodd" fill="url(#h{uid})" stroke="{INK}" stroke-width="1.6"/>'
-        + _hdim(x0, x0 + W, y0 - 22, y0 - 4, _n(p.width_mm), uid)
-        + _vdim(y0, y0 + H, x0 + W + 24, x0 + W + 4, _n(p.height_mm), uid)
+        + _hdim(x0, x0 + W, y0 - 22, y0 - 4, _n(width_mm), uid)
+        + _vdim(y0, y0 + H, x0 + W + 24, x0 + W + 4, _n(height_mm), uid)
         + f'<g stroke="{DIM}" stroke-width="1" fill="none"><circle cx="{lead_x}" cy="{lead_y}" r="2" fill="{DIM}"/>'
         f'<polyline points="{lead_x},{lead_y} {x0 + W + 20},{y0 + H + 26} {x0 + W + 64},{y0 + H + 26}"/></g>'
-        f'<text x="{x0 + W + 24}" y="{y0 + H + 21}" class="dim">t = {_n(p.thickness_mm)}</text>'
+        f'<text x="{x0 + W + 24}" y="{y0 + H + 21}" class="dim">t = {_n(thickness_mm)}</text>'
     )
 
 
-def _round(p: Product, uid: str, ribbed: bool) -> str:
+def _round(diameter_mm: Decimal, uid: str, ribbed: bool) -> str:
     cx, cy, r = 156, 156, 74
     ribs = ""
     if ribbed:
@@ -111,30 +111,31 @@ def _round(p: Product, uid: str, ribbed: bool) -> str:
         + f'<g stroke="{INK}" stroke-width="0.8" stroke-dasharray="10 3 2 3">'
         f'<line x1="{cx - r - 28}" y1="{cy}" x2="{cx + r + 28}" y2="{cy}"/>'
         f'<line x1="{cx}" y1="{cy - r - 14}" x2="{cx}" y2="{cy + r + 14}"/></g>'
-        + _hdim(cx - r, cx + r, cy - r - 28, cy - 6, f"Ø{_n(p.diameter_mm)}", uid)
+        + _hdim(cx - r, cx + r, cy - r - 28, cy - 6, f"Ø{_n(diameter_mm)}", uid)
     )
 
 
-def _plate(p: Product, uid: str) -> str:
-    t = float(p.thickness_mm)
+def _plate(thickness_mm: Decimal, uid: str) -> str:
+    t = float(thickness_mm)
     x0, y0, W = 50, 150, 220
     tv = max(min(t * 6, 60), 6)
     return (
         f'<rect x="{x0}" y="{y0}" width="{W}" height="{tv}" fill="url(#h{uid})" stroke="{INK}" stroke-width="1.6"/>'
-        + _vdim(y0, y0 + tv, x0 + W + 30, x0 + W + 4, _n(p.thickness_mm), uid)
+        + _vdim(y0, y0 + tv, x0 + W + 30, x0 + W + 4, _n(thickness_mm), uid)
     )
 
 
 def section_svg(product: Product) -> Markup:
-    """Крупный чертёж для карточки товара (или пустая строка, если профиль не распознан)."""
+    """Крупный чертёж для карточки товара. Профиль не распознан или нужных размеров нет — пустая строка."""
     kind = profile_of(product)
     uid = str(next(_ids))
-    if kind == "tube_rect":
-        body = _tube_rect(product, uid)
-    elif kind in ("rebar", "round"):
-        body = _round(product, uid, ribbed=kind == "rebar")
-    elif kind == "plate":
-        body = _plate(product, uid)
+    w, h, t, d = product.width_mm, product.height_mm, product.thickness_mm, product.diameter_mm
+    if kind == "tube_rect" and w and h and t:
+        body = _tube_rect(w, h, t, uid)
+    elif kind in ("rebar", "round") and d:
+        body = _round(d, uid, ribbed=kind == "rebar")
+    elif kind == "plate" and t:
+        body = _plate(t, uid)
     else:
         return Markup("")
     label = f"Сечение: {product.name}, размеры в миллиметрах"
@@ -147,16 +148,12 @@ def section_svg(product: Product) -> Markup:
 
 def hero_svg() -> Markup:
     """Композиция для первого экрана: арматура и профильная труба в разрезе."""
-    from decimal import Decimal as D
-
-    rebar = Product(name="Арматура 12 мм", diameter_mm=D(12), steel_grade="А500С")
-    tube = Product(name="Труба 60×40×3", width_mm=D(60), height_mm=D(40), thickness_mm=D(3))
     uid = str(next(_ids))
     return Markup(  # noqa: S704 — свой SVG из констант
         '<svg viewBox="0 0 440 340" role="img" aria-label="Чертежи сечений: арматура Ø12 и профильная труба 60×40×3" '
         f'xmlns="http://www.w3.org/2000/svg">{_defs(uid)}'
-        f'<g transform="translate(-36 -6) scale(.78)">{_round(rebar, uid, ribbed=True)}</g>'
-        f'<g transform="translate(150 96) scale(.82)">{_tube_rect(tube, uid)}</g></svg>'
+        f'<g transform="translate(-36 -6) scale(.78)">{_round(Decimal(12), uid, ribbed=True)}</g>'
+        f'<g transform="translate(150 96) scale(.82)">{_tube_rect(Decimal(60), Decimal(40), Decimal(3), uid)}</g></svg>'
     )
 
 
