@@ -7,7 +7,7 @@ COMPOSE := docker compose
 
 .DEFAULT_GOAL := help
 .PHONY: help setup venv install env db db-stop db-logs db-shell db-reset migrate migration seed landings \
-        run test lint format check deploy clean
+        run test lint types imports audit format check deploy clean
 
 help: ## Список команд
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "} {printf "  \033[1m%-12s\033[0m %s\n", $$1, $$2}'
@@ -70,11 +70,20 @@ test: db ## Тесты (pytest)
 lint: ## Проверка кода (ruff check)
 	$(PY) -m ruff check .
 
+types: ## Проверка типов (mypy): строго для новых модулей
+	$(PY) -m mypy
+
+imports: ## Контракты зависимостей модулей (import-linter)
+	$(PY) -c "import sys; from importlinter.cli import lint_imports_command; sys.exit(lint_imports_command())"
+
+audit: ## Известные уязвимости в зависимостях (pip-audit, нужен интернет)
+	$(PY) -m pip_audit -r requirements.txt
+
 format: ## Привести оформление кода к ruff (миграции Alembic не трогает)
 	$(PY) -m ruff check --fix .
 	$(PY) -m ruff format --exclude migrations .
 
-check: lint test ## Всё, что проверяем перед коммитом: ruff + pytest
+check: lint types imports test ## Всё, что проверяем перед коммитом: ruff, mypy, import-linter, pytest
 
 # ---------- Выкладка ----------
 

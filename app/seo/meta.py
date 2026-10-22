@@ -10,7 +10,7 @@ from app.catalog.models import Category, FilterLanding, Product, Unit
 from app.core.config import settings
 from app.core.templating import format_rub
 
-PRICE_TOKEN = "{price}"
+PRICE_TOKEN = "{price}"  # noqa: S105 — метка подстановки цены, не пароль
 
 
 @dataclass

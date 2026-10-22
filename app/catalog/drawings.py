@@ -138,7 +138,7 @@ def section_svg(product: Product) -> Markup:
     else:
         return Markup("")
     label = f"Сечение: {product.name}, размеры в миллиметрах"
-    return Markup(
+    return Markup(  # noqa: S704 — свой SVG из чисел, название экранировано
         f'<svg class="section-drawing" viewBox="0 0 360 300" role="img" aria-label="{escape(label)}" '
         f'xmlns="http://www.w3.org/2000/svg">{_defs(uid)}'
         f"{body}</svg>"
@@ -152,7 +152,7 @@ def hero_svg() -> Markup:
     rebar = Product(name="Арматура 12 мм", diameter_mm=D(12), steel_grade="А500С")
     tube = Product(name="Труба 60×40×3", width_mm=D(60), height_mm=D(40), thickness_mm=D(3))
     uid = str(next(_ids))
-    return Markup(
+    return Markup(  # noqa: S704 — свой SVG из констант
         '<svg viewBox="0 0 440 340" role="img" aria-label="Чертежи сечений: арматура Ø12 и профильная труба 60×40×3" '
         f'xmlns="http://www.w3.org/2000/svg">{_defs(uid)}'
         f'<g transform="translate(-36 -6) scale(.78)">{_round(rebar, uid, ribbed=True)}</g>'

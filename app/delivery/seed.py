@@ -7,6 +7,7 @@ python -m app.delivery.seed
 
 import asyncio
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +17,7 @@ from app.delivery.models import DeliveryVehicle
 
 RUB = 100  # копеек в рубле
 
-DEFAULT_VEHICLES: list[dict] = [
+DEFAULT_VEHICLES: list[dict[str, Any]] = [
     {
         "name": "Грузовик до 1,2 т",
         "max_weight_kg": 1200,

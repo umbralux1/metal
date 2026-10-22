@@ -1,6 +1,9 @@
 import json
 import re
+from contextlib import contextmanager
 from html.parser import HTMLParser
+
+from sqlalchemy import event
 
 
 class PageInfo(HTMLParser):
@@ -46,3 +49,20 @@ class PageInfo(HTMLParser):
 
     def jsonld_types(self) -> set[str]:
         return {block["@type"] for block in self.jsonld}
+
+
+@contextmanager
+def count_queries():
+    """Считает SQL-запросы к базе внутри блока: with count_queries() as queries: ...; len(queries)."""
+    from app.core.db import engine
+
+    queries: list[str] = []
+
+    def on_execute(conn, cursor, statement, parameters, context, executemany):
+        queries.append(statement)
+
+    event.listen(engine.sync_engine, "before_cursor_execute", on_execute)
+    try:
+        yield queries
+    finally:
+        event.remove(engine.sync_engine, "before_cursor_execute", on_execute)

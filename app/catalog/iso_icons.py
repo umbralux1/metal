@@ -123,7 +123,7 @@ class Icon:
         body = "".join(self.parts)
         for tag in ("polygon", "line", "circle"):
             body = body.replace(f"<{tag} ", f'<{tag} vector-effect="non-scaling-stroke" ')
-        return Markup(
+        return Markup(  # noqa: S704 — свой SVG из чисел
             f'<svg class="icon iso" viewBox="{x0:.2f} {y0:.2f} {side:.2f} {side:.2f}" aria-hidden="true" '
             f'focusable="false" {STROKE}>{body}</svg>'
         )

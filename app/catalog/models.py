@@ -64,8 +64,8 @@ class Category(TimestampMixin, SeoMixin, Base):
     sort: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
 
-    parent: Mapped["Category | None"] = relationship(remote_side="Category.id", back_populates="children")
-    children: Mapped[list["Category"]] = relationship(back_populates="parent", order_by="Category.sort")
+    parent: Mapped["Category | None"] = relationship(remote_side="Category.id", back_populates="children", lazy="raise")
+    children: Mapped[list["Category"]] = relationship(back_populates="parent", order_by="Category.sort", lazy="raise")
 
     @property
     def url(self) -> str:
@@ -161,7 +161,7 @@ class Price(Base):
     unit: Mapped[Unit] = mapped_column(_unit_enum())
     amount_kop: Mapped[int] = mapped_column(Integer)
 
-    product: Mapped[Product] = relationship(back_populates="prices")
+    product: Mapped[Product] = relationship(back_populates="prices", lazy="raise")
 
     def __str__(self) -> str:
         if self.amount_kop is None or self.unit is None:

@@ -13,7 +13,7 @@ import os
 def server_options(env: dict[str, str]) -> dict:
     on_host = "PORT" in env
     return {
-        "host": "0.0.0.0" if on_host else "127.0.0.1",
+        "host": "0.0.0.0" if on_host else "127.0.0.1",  # noqa: S104 — на Render слушать все интерфейсы обязательно
         "port": int(env.get("PORT", 8000)),
         "reload": not on_host,
         "proxy_headers": True,
