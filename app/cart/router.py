@@ -16,6 +16,7 @@ from app.catalog.calculator import CalcError, CalcInput, CalcResult, calculate, 
 from app.catalog.models import Product
 from app.core.config import settings
 from app.core.db import get_session
+from app.core.maps import yandex_map
 from app.core.templating import format_rub, templates
 from app.delivery.cargo import CargoSpec
 from app.delivery.selection import CutHint, VehicleQuote, cut_hint, quote_vehicles
@@ -105,6 +106,7 @@ def _cart_context(lines: list[Line], options: DeliveryOptions, values: dict[str,
         "buyer_types": BUYER_TYPES,
         "payments": PAYMENTS,
         "options": options,
+        "map": yandex_map(),
     }
 
 
