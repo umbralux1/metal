@@ -36,9 +36,9 @@ root_package = "app"
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
-name = "Слои: страницы → корзина → заявки → каталог → ядро"
+name = "Слои: страницы → корзина → заявки → каталог → SEO → ядро"
 type = "layers"
-layers = ["app.main", "app.admin | app.pages", "app.cart", "app.leads", "app.catalog", "app.core"]
+layers = ["app.main", "app.admin | app.pages", "app.cart", "app.leads", "app.catalog", "app.seo", "app.core"]
 ignore_imports = [
     "app.core.startup -> app.catalog.*",  # запуск сервера: сид и посадочные — место им в app.main
     "app.core.startup -> app.delivery.*",

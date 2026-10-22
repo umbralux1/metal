@@ -43,7 +43,7 @@ def _unit_enum() -> Enum:
 
 
 class SeoMixin:
-    """Поля для ручного переопределения мета-тегов. Пусто — берётся шаблон из app/seo/meta.py."""
+    """Поля для ручного переопределения мета-тегов. Пусто — берётся шаблон из app/catalog/seo.py."""
 
     title: Mapped[str | None] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(String(500))

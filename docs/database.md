@@ -32,7 +32,7 @@ alembic_version                    (служебная, номер послед�
 | `updated_at` | timestamptz | Когда изменена последний раз |
 
 SEO-поля есть у `categories`, `products` и `filter_landings`. Пустое поле значит «собрать по шаблону»
-из `app/seo/meta.py`:
+из `app/catalog/seo.py`:
 
 | Поле | Тип | Что это |
 |---|---|---|

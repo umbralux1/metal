@@ -3,7 +3,6 @@
 import json
 from typing import Any
 
-from app.catalog.models import Product
 from app.core.config import settings
 from app.seo.hours import opening_hours
 from app.seo.meta import absolute
@@ -58,37 +57,3 @@ def breadcrumbs(items: list[tuple[str, str]]) -> dict[str, Any]:
             for i, (name, url) in enumerate(items, start=1)
         ],
     }
-
-
-def item_list(products: list[Product]) -> dict[str, Any]:
-    return {
-        "@context": "https://schema.org",
-        "@type": "ItemList",
-        "itemListElement": [
-            {"@type": "ListItem", "position": i, "url": absolute(p.url), "name": p.name}
-            for i, p in enumerate(products, start=1)
-        ],
-    }
-
-
-def product(item: Product) -> dict[str, Any]:
-    data: dict[str, Any] = {
-        "@context": "https://schema.org",
-        "@type": "Product",
-        "name": item.name,
-        "url": absolute(item.url),
-        "category": item.category.name if item.category else None,
-    }
-    if item.sku:
-        data["sku"] = item.sku
-    price = item.base_price
-    if price:
-        data["offers"] = {
-            "@type": "Offer",
-            "price": f"{price.amount_kop / 100:.2f}",
-            "priceCurrency": "RUB",
-            "availability": "https://schema.org/InStock" if item.in_stock else "https://schema.org/OutOfStock",
-            "url": absolute(item.url),
-            "seller": {"@type": "Organization", "name": settings.site_name},
-        }
-    return {k: v for k, v in data.items() if v is not None}

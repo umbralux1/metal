@@ -8,21 +8,13 @@ from app.catalog import repository as repo
 from app.catalog.calculator import CalcError, calculate, default_input, parse_input
 from app.catalog.landings import product_seo_text
 from app.catalog.models import Category, FilterLanding, Product
+from app.catalog.seo import category_meta, item_list_jsonld, landing_meta, piece_price_kop, product_jsonld, product_meta
 from app.catalog.utils import fix_layout
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.templating import templates
 from app.seo import jsonld
-from app.seo.meta import (
-    PageMeta,
-    absolute,
-    category_meta,
-    city_prep,
-    landing_meta,
-    piece_price_kop,
-    product_meta,
-    robots_for,
-)
+from app.seo.meta import PageMeta, absolute, city_prep, robots_for
 
 router = APIRouter()
 
@@ -127,7 +119,7 @@ async def _render_category(request: Request, session: AsyncSession, category: Ca
         "breadcrumbs": crumbs,
         "jsonld": [
             jsonld.to_script(jsonld.breadcrumbs(crumbs)),
-            jsonld.to_script(jsonld.item_list(products.items)),
+            jsonld.to_script(item_list_jsonld(products.items)),
         ],
     }
     return templates.TemplateResponse(request, "catalog/listing.html", context)
@@ -152,7 +144,7 @@ async def _render_landing(request: Request, session: AsyncSession, landing: Filt
         "breadcrumbs": crumbs,
         "jsonld": [
             jsonld.to_script(jsonld.breadcrumbs(crumbs)),
-            jsonld.to_script(jsonld.item_list(products.items)),
+            jsonld.to_script(item_list_jsonld(products.items)),
         ],
     }
     return templates.TemplateResponse(request, "catalog/listing.html", context)
@@ -205,6 +197,6 @@ async def _render_product(request: Request, session: AsyncSession, product: Prod
         "auto_text": None if product.seo_text else product_seo_text(product),
         **_calc_context(product, request.query_params),
         "breadcrumbs": crumbs,
-        "jsonld": [jsonld.to_script(jsonld.breadcrumbs(crumbs)), jsonld.to_script(jsonld.product(product))],
+        "jsonld": [jsonld.to_script(jsonld.breadcrumbs(crumbs)), jsonld.to_script(product_jsonld(product))],
     }
     return templates.TemplateResponse(request, "catalog/product.html", context)
