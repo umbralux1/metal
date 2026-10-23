@@ -114,10 +114,8 @@ class Product(TimestampMixin, SeoMixin, Base):
     search_text: Mapped[str] = mapped_column(Text, default="", server_default="")
     attrs: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
 
-    category: Mapped[Category] = relationship(lazy="joined")
-    prices: Mapped[list["Price"]] = relationship(
-        back_populates="product", cascade="all, delete-orphan", lazy="selectin"
-    )
+    category: Mapped[Category] = relationship(lazy="raise")
+    prices: Mapped[list["Price"]] = relationship(back_populates="product", cascade="all, delete-orphan", lazy="raise")
 
     @property
     def url(self) -> str:
@@ -195,7 +193,7 @@ class FilterLanding(TimestampMixin, SeoMixin, Base):
     # Создана генератором (app/catalog/landings.py) и обновляется им. Правка в админке делает её ручной.
     is_generated: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
-    category: Mapped[Category] = relationship(lazy="joined")
+    category: Mapped[Category] = relationship(lazy="raise")
 
     @property
     def url(self) -> str:

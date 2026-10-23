@@ -2,12 +2,11 @@ import re
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog.calculator import CalcError, calculate, parse_input
-from app.catalog.models import Product
 from app.catalog.read_models import product_link
+from app.catalog.repository import get_product_by_id
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.templating import templates
@@ -39,7 +38,7 @@ async def create_lead(request: Request, session: AsyncSession = Depends(get_sess
     if not all(isinstance(value, str) for value in raw.values()):  # файл вместо текста — так шлют только боты
         return HTMLResponse("Неверные данные формы", status_code=422)
     form = {key: value for key, value in raw.items() if isinstance(value, str)}
-    product = await session.scalar(select(Product).where(Product.id == _int(form.get("product_id"))))
+    product = await get_product_by_id(session, _int(form.get("product_id")))
     values = {k: str(form.get(k, "")).strip() for k in ("name", "phone", "comment")}
 
     def form_error(message: str, status: int = 422):

@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog.landing_rules import RULES, LandingRule, display_name, product_slug, qualifier_for, rule_for
 from app.catalog.models import Category, FilterLanding, Product, Unit
+from app.catalog.repository import PRODUCT_CARD
 from app.catalog.utils import slugify
 from app.core.config import settings
 from app.core.db import SessionLocal, engine
@@ -262,7 +263,7 @@ async def generate_landings(
     report = Report()
     fresh_ids = fresh_ids or set()
     categories = {c.path: c for c in await session.scalars(select(Category))}
-    products = list(await session.scalars(select(Product).where(Product.is_active.is_(True))))
+    products = list(await session.scalars(select(Product).where(Product.is_active.is_(True)).options(*PRODUCT_CARD)))
     landings = list(await session.scalars(select(FilterLanding)))
     by_path = {item.path: item for item in landings}
     taken = set(categories) | {p.path for p in products}

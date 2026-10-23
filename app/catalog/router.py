@@ -181,7 +181,7 @@ def _params_from(inp) -> dict:
 @router.get("/api/calc/{product_id}/", response_class=HTMLResponse, include_in_schema=False)
 async def calc_partial(request: Request, product_id: int, session: AsyncSession = Depends(get_session)):
     """Кусок HTML с итогом — для пересчёта на лету без перезагрузки страницы."""
-    product = await session.get(Product, product_id)
+    product = await repo.get_product_by_id(session, product_id)
     if product is None or not product.is_active:
         raise HTTPException(status_code=404)
     context = {"product": product_link(product), **_calc_context(product, request.query_params)}

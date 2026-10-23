@@ -8,6 +8,7 @@
 
 import pytest_asyncio
 from sqlalchemy import delete, or_, select, update
+from sqlalchemy.orm import selectinload
 
 from app.admin.money import kop_to_rub
 from app.catalog.models import Product, Redirect
@@ -59,7 +60,7 @@ def edit_form(product: Product, **changes: str) -> dict[str, str]:
 @pytest_asyncio.fixture
 async def product():
     async with SessionLocal() as s:
-        item = await s.scalar(select(Product).where(Product.path == PATH))
+        item = await s.scalar(select(Product).where(Product.path == PATH).options(selectinload(Product.prices)))
     yield item
     async with SessionLocal() as s:  # вернуть товар на место и убрать редиректы теста
         await s.execute(update(Product).where(Product.id == item.id).values(slug=item.slug, path=PATH))

@@ -5,7 +5,7 @@ from typing import Any
 
 from sqlalchemy import ColumnElement, Select, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, joinedload, selectinload
 
 from app.catalog.models import Category, FilterLanding, Price, Product, Redirect
 from app.catalog.utils import normalize_search
@@ -21,6 +21,10 @@ FILTERABLE_COLUMNS = {
     "gost": Product.gost,
 }
 NUMERIC_KEYS = {"diameter_mm", "width_mm", "height_mm", "thickness_mm", "length_m"}
+
+# Связи моделей не грузятся сами (lazy="raise", tests/test_relations.py) — нужное загружаем в запросе явно
+PRODUCT_CARD = (joinedload(Product.category), selectinload(Product.prices))  # страница, строка, расчёт цены
+LANDING_WITH_CATEGORY = joinedload(FilterLanding.category)
 
 
 @dataclass
@@ -83,11 +87,12 @@ async def get_category(session: AsyncSession, path: str) -> Category | None:
 
 
 async def get_landing(session: AsyncSession, path: str) -> FilterLanding | None:
-    return await session.scalar(select(FilterLanding).where(FilterLanding.path == path, visible_landing()))
+    stmt = select(FilterLanding).where(FilterLanding.path == path, visible_landing()).options(LANDING_WITH_CATEGORY)
+    return await session.scalar(stmt)
 
 
 async def get_product(session: AsyncSession, path: str) -> Product | None:
-    return await session.scalar(select(Product).where(Product.path == path, visible_product()))
+    return await session.scalar(select(Product).where(Product.path == path, visible_product()).options(*PRODUCT_CARD))
 
 
 async def get_redirect(session: AsyncSession, from_path: str) -> Redirect | None:
@@ -138,7 +143,9 @@ async def breadcrumb_nodes(session: AsyncSession, path: str) -> list[Category | 
 async def size_landing(session: AsyncSession, product: Product) -> FilterLanding | None:
     """Посадочная размера, внутри которой лежит товар (адрес товара = её адрес + slug)."""
     parent = product.path.rsplit("/", 1)[0]
-    return await session.scalar(select(FilterLanding).where(FilterLanding.path == parent))
+    return await session.scalar(
+        select(FilterLanding).where(FilterLanding.path == parent).options(LANDING_WITH_CATEGORY)
+    )
 
 
 async def same_size_products(session: AsyncSession, landing: FilterLanding, exclude: Product) -> list[Product]:
@@ -151,6 +158,7 @@ async def same_size_products(session: AsyncSession, landing: FilterLanding, excl
             Product.id != exclude.id,
         )
         .order_by(Product.thickness_mm, Product.name)
+        .options(*PRODUCT_CARD)
     )
     return list(await session.scalars(stmt))
 
@@ -175,7 +183,7 @@ async def list_products(
 
     total = await session.scalar(select(func.count()).select_from(base.subquery())) or 0
     pages = max(1, -(-total // page_size))
-    stmt = base.order_by(Product.name).offset((page - 1) * page_size).limit(page_size)
+    stmt = base.order_by(Product.name).offset((page - 1) * page_size).limit(page_size).options(*PRODUCT_CARD)
     items = list(await session.scalars(stmt))
     return ProductPage(items=items, total=total, page=page, pages=pages)
 
@@ -215,6 +223,7 @@ async def search_products(
     for i, token in enumerate(tokens):
         stmt = stmt.where(_token_filter(Product.search_text, token, prefix_last and i == len(tokens) - 1))
     stmt = stmt.order_by(func.similarity(Product.search_text, norm).desc(), Product.name).limit(limit)
+    stmt = stmt.options(*PRODUCT_CARD)
     return list(await session.scalars(stmt))
 
 
@@ -257,6 +266,11 @@ async def suggest(session: AsyncSession, query: str, limit_products: int = 6) ->
         meta = f"{format_rub(price.amount_kop)}/{price.unit.label}" if price else "Цена по запросу"
         items.append(Suggestion("product", p.name, p.url, meta))
     return items
+
+
+async def get_product_by_id(session: AsyncSession, product_id: int) -> Product | None:
+    """Товар с ценами и разделом — для расчёта калькулятора, корзины и заявки."""
+    return await session.scalar(select(Product).where(Product.id == product_id).options(*PRODUCT_CARD))
 
 
 async def inactive_parent_url(session: AsyncSession, path: str) -> str | None:

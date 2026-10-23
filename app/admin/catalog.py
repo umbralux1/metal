@@ -7,8 +7,8 @@
 from typing import Any
 
 from sqladmin import ModelView, action
-from sqlalchemy import delete, select
-from sqlalchemy.orm import InstrumentedAttribute
+from sqlalchemy import Select, delete, select
+from sqlalchemy.orm import InstrumentedAttribute, selectinload
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from wtforms import SelectField, StringField
@@ -198,6 +198,17 @@ class ProductAdmin(ModelView, model=Product):
     form_ajax_refs = {"category": {"fields": ("name", "path"), "order_by": "path"}}
     can_delete = False  # снимите «Активен» — адрес начнёт перенаправлять в раздел
 
+    # Связи не грузятся сами (lazy="raise"). Раздел в списке и карточке sqladmin грузит сам; цены (колонка «Цены»,
+    # поля цен в форме) и раздел в форме (поле с поиском sqladmin не грузит) — явно
+    def list_query(self, request: Request) -> Select:
+        return super().list_query(request).options(selectinload(Product.prices))
+
+    def details_query(self, request: Request) -> Select:
+        return super().details_query(request).options(selectinload(Product.prices))
+
+    def form_edit_query(self, request: Request) -> Select:
+        return super().form_edit_query(request).options(selectinload(Product.category), selectinload(Product.prices))
+
     async def scaffold_form(self, rules=None):
         """Стандартная форма + поля цен сразу после «Основной единицы продажи»."""
         base = await super().scaffold_form(rules)
@@ -349,6 +360,10 @@ class FilterLandingAdmin(ModelView, model=FilterLanding):
         "description": {"description": "{price} подставит минимальную цену. Пусто — по шаблону."},
     }
     form_widget_args = {"seo_text": {"rows": 10}}
+
+    def form_edit_query(self, request: Request) -> Select:
+        """Раздел в форме — поле с поиском, sqladmin его не грузит; связи не грузятся сами (lazy="raise")."""
+        return super().form_edit_query(request).options(selectinload(FilterLanding.category))
 
     @action(
         name="generate",

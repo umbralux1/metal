@@ -12,6 +12,7 @@ from app.cart.store import CartItem
 from app.catalog.calculator import CalcError, CalcInput, CalcResult, calculate, parse_input
 from app.catalog.models import Product
 from app.catalog.read_models import ProductLink, product_link
+from app.catalog.repository import PRODUCT_CARD, get_product_by_id
 from app.core.config import settings
 from app.delivery.cargo import CargoSpec
 from app.delivery.selection import CutHint, VehicleQuote, cut_hint, quote_vehicles
@@ -69,7 +70,7 @@ class DeliveryOptions:
 
 
 async def get_product(session: AsyncSession, product_id: int) -> Product | None:
-    return await session.get(Product, product_id)
+    return await get_product_by_id(session, product_id)
 
 
 def price_cart_item(product: Product, item: CartItem) -> CalcResult:
@@ -79,7 +80,8 @@ def price_cart_item(product: Product, item: CartItem) -> CalcResult:
 
 async def list_cart_lines(session: AsyncSession, items: list[CartItem]) -> list[Line]:
     ids = {i.product_id for i in items}
-    products = {p.id: p for p in await session.scalars(select(Product).where(Product.id.in_(ids)))} if ids else {}
+    stmt = select(Product).where(Product.id.in_(ids)).options(*PRODUCT_CARD)
+    products = {p.id: p for p in await session.scalars(stmt)} if ids else {}
     lines = []
     for index, item in enumerate(items):
         product = products.get(item.product_id)
