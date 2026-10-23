@@ -17,21 +17,11 @@ async def nav_categories() -> list[dict]:
         return _cache["items"]
     async with SessionLocal() as session:
         rows = await session.execute(
-            select(Category.id, Category.name, Category.slug, Category.path)
+            select(Category.name, Category.slug, Category.path)
             .where(Category.parent_id.is_(None), Category.is_active.is_(True))
             .order_by(Category.sort, Category.name)
         )
-        parents = set(
-            await session.scalars(
-                select(Category.parent_id)
-                .where(Category.parent_id.is_not(None), Category.is_active.is_(True))
-                .distinct()
-            )
-        )
-    items = [
-        {"name": name, "slug": slug, "url": f"/catalog/{path}/", "has_children": cid in parents}
-        for cid, name, slug, path in rows
-    ]
+    items = [{"name": name, "slug": slug, "url": f"/catalog/{path}/"} for name, slug, path in rows]
     _cache.update(at=time.monotonic(), items=items)
     return items
 
