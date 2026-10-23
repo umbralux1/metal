@@ -7,7 +7,7 @@ COMPOSE := docker compose
 
 .DEFAULT_GOAL := help
 .PHONY: help setup venv install browsers env db db-stop db-logs db-shell db-reset migrate migration seed landings \
-        run test lint types imports audit format check deploy clean
+        run test lint types imports audit format check snapshot snapshot-diff deploy clean
 
 help: ## Список команд
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "} {printf "  \033[1m%-12s\033[0m %s\n", $$1, $$2}'
@@ -87,6 +87,12 @@ format: ## Привести оформление кода к ruff (миграц�
 	$(PY) -m ruff format --exclude migrations .
 
 check: lint types imports test ## Всё, что проверяем перед коммитом: ruff, mypy, import-linter, pytest
+
+snapshot: db ## Снимок сайта, корзины и админки до рефакторинга (база metal_snapshot, .snapshots/before)
+	$(PY) -m scripts.snapshot before
+
+snapshot-diff: db ## Снимок после изменений и сравнение с make snapshot: какие ответы поменялись
+	$(PY) -m scripts.snapshot diff
 
 # ---------- Выкладка ----------
 

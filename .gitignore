@@ -5,6 +5,7 @@ __pycache__/
 .env
 .pytest_cache/
 .ruff_cache/
+.snapshots/
 .idea/
 .DS_Store
 .env.render

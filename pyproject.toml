@@ -23,14 +23,14 @@ select = ["E4", "E7", "E9", "F", "I", "S"]
 
 [tool.ruff.lint.isort]
 # Свои пакеты — явно: иначе импорт ещё не созданного модуля (тесты до кода, TDD) ruff считает сторонним
-known-first-party = ["app", "tests"]
+known-first-party = ["app", "tests", "scripts"]
 
 [tool.ruff.lint.per-file-ignores]
 # В тестах assert — основной инструмент, тестовые пароли и разбор своего sitemap безопасны
 "tests/**" = ["S101", "S104", "S105", "S106", "S314"]
 
-# Контракты зависимостей модулей (CLAUDE.md, «Архитектура»): make check → lint-imports.
-# ignore_imports — уже существующие нарушения, каждое записано в docs/tech-debt.md. Новых не добавлять.
+# Контракты зависимостей модулей (CLAUDE.md, «Архитектура»): make check → lint-imports. Исключений (ignore_imports) нет
+# и не добавлять: нарушение — исправить или записать в docs/tech-debt.md.
 [tool.importlinter]
 root_package = "app"
 include_external_packages = true
