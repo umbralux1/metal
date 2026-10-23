@@ -124,7 +124,7 @@ async def test_product_page_has_add_to_cart_button(client):
 
 
 async def test_admin_shows_cart_order_items():
-    from app.admin.views import _lead_calc_html
+    from app.admin.leads import _lead_calc_html
 
     html = str(
         _lead_calc_html(

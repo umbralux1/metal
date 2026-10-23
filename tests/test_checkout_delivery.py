@@ -285,7 +285,7 @@ async def test_lead_snapshot_does_not_change_with_tariff(shop):
 
 
 def test_admin_shows_delivery_buyer_and_payment():
-    from app.admin.views import _lead_calc_html
+    from app.admin.leads import _lead_calc_html
 
     html = str(
         _lead_calc_html(
@@ -312,7 +312,7 @@ def test_admin_shows_delivery_buyer_and_payment():
 
 
 def test_admin_shows_delivery_price_unknown():
-    from app.admin.views import _lead_calc_html
+    from app.admin.leads import _lead_calc_html
 
     html = str(
         _lead_calc_html(

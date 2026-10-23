@@ -297,7 +297,7 @@ async def test_product_prices_in_rubles_in_product_form(admin):
 def test_rub_to_kop():
     import pytest
 
-    from app.admin.views import kop_to_rub, rub_to_kop
+    from app.admin.money import kop_to_rub, rub_to_kop
 
     assert rub_to_kop("43,25") == 4325 and rub_to_kop("48 700") == 4870000 and rub_to_kop("") is None
     assert rub_to_kop("5 299 ₽") == 529900

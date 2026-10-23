@@ -73,8 +73,7 @@ source_modules = [
 ]
 forbidden_modules = ["sqlalchemy", "httpx", "fastapi", "starlette", "app.core.db", "app.core.config"]
 
-# Типы: mypy в make check. Новый код — строго (app.delivery); старый — базовая проверка,
-# файлы с ошибками в ignore_errors, каждый записан в docs/tech-debt.md.
+# Типы: mypy в make check, весь app без исключений. Строго — app.delivery и app.cart, остальное — базовая проверка.
 [tool.mypy]
 python_version = "3.11"
 files = ["app"]
@@ -90,12 +89,6 @@ disallow_any_generics = true
 check_untyped_defs = true
 warn_return_any = true
 strict_equality = true
-
-[[tool.mypy.overrides]]
-module = [
-    "app.admin.views",
-]
-ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = ["wtforms", "wtforms.*"]
