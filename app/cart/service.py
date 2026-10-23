@@ -17,8 +17,7 @@ from app.core.config import settings
 from app.delivery.cargo import CargoSpec
 from app.delivery.selection import CutHint, VehicleQuote, cut_hint, quote_vehicles
 from app.delivery.service import list_active_vehicles
-from app.leads.models import Lead
-from app.leads.notify import notify_new_lead
+from app.leads.service import LeadReceipt, NewLead, create_lead
 
 
 @dataclass
@@ -113,7 +112,7 @@ async def quote_cart_delivery(session: AsyncSession, lines: list[Line], distance
 
 async def create_order(
     session: AsyncSession, form: CheckoutForm, lines: list[Line], quote: VehicleQuote | None
-) -> Lead:
+) -> LeadReceipt:
     """Сохраняет заказ заявкой и уведомляет менеджера. Форма и машина уже проверены."""
     items = [
         {
@@ -127,7 +126,7 @@ async def create_order(
         if line.product and line.calc
     ]
     goods_kop = sum(line.calc.total_kop for line in lines if line.calc)
-    lead = Lead(
+    new = NewLead(
         product_id=None,
         product_name=f"Корзина: {len(lines)} поз.",
         name=form.name,
@@ -135,7 +134,4 @@ async def create_order(
         comment=order_comment(form),
         calc=order_snapshot(form, items, goods_kop, quote),
     )
-    session.add(lead)
-    await session.commit()
-    await notify_new_lead(lead)
-    return lead
+    return await create_lead(session, new)

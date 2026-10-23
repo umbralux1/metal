@@ -4,7 +4,7 @@ from sqlalchemy import func, select
 from app.catalog.models import Product
 from app.core.db import SessionLocal
 from app.leads.models import Lead
-from app.leads.router import normalize_phone
+from app.leads.phone import normalize_phone
 from tests.helpers import PageInfo
 
 PRODUCT_URL = "/catalog/armatura/12-mm/12-mm-a500s/"

@@ -38,7 +38,9 @@
 ## Архитектура
 - **Модуль = предметная область**: `app/catalog`, `app/cart`, `app/leads`, `app/delivery`, `app/seo`. Публичное
   у модуля — `service.py` и модули с типами и чистыми функциями (у доставки `cargo`, `pricing`, `selection`).
-  `models.py` — только самому модулю, админке, миграциям и тестам; для `app/delivery` проверяет import-linter.
+  У каталога `service.py` нет: публичное — `repository.py`, `read_models.py` и чистые модули.
+  `models.py` — только самому модулю, админке, миграциям и тестам; для `app/delivery` и `app/leads` проверяет
+  import-linter (заявки создаются только через `create_lead` в `app/leads/service.py`).
 - **Зависимости в одну сторону, без циклов**: `core` ← `seo` ← `catalog` ← `leads` ← `cart` ← страницы и админка.
   `seo` — только общее (мета-теги, разметка организации и крошек); SEO страниц каталога — в `app/catalog/seo.py`.
   `delivery` не знает про корзину и товары: получает простые данные (`CargoSpec`) и возвращает простые данные

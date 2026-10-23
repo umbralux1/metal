@@ -1,5 +1,3 @@
-import re
-
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,22 +8,11 @@ from app.catalog.repository import get_product_by_id
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.templating import templates
-from app.leads.models import Lead
-from app.leads.notify import notify_new_lead
-from app.leads.service import lead_receipt
+from app.leads.phone import normalize_phone
+from app.leads.service import NewLead, create_lead
 from app.seo.meta import PageMeta, absolute
 
 router = APIRouter()
-
-
-def normalize_phone(raw: str) -> str | None:
-    """«8 (916) 123-45-67» → «+79161234567». None, если номер не похож на российский."""
-    digits = re.sub(r"\D", "", raw)
-    if len(digits) == 11 and digits[0] in "78":
-        return "+7" + digits[1:]
-    if len(digits) == 10 and digits[0] == "9":
-        return "+7" + digits
-    return None
 
 
 def _is_fetch(request: Request) -> bool:
@@ -33,7 +20,7 @@ def _is_fetch(request: Request) -> bool:
 
 
 @router.post("/api/lead/", response_class=HTMLResponse, include_in_schema=False)
-async def create_lead(request: Request, session: AsyncSession = Depends(get_session)):
+async def submit_lead(request: Request, session: AsyncSession = Depends(get_session)):
     raw = await request.form()
     if not all(isinstance(value, str) for value in raw.values()):  # файл вместо текста — так шлют только боты
         return HTMLResponse("Неверные данные формы", status_code=422)
@@ -69,7 +56,7 @@ async def create_lead(request: Request, session: AsyncSession = Depends(get_sess
         "cut_len": form.get("cut_len"),
         "cut_count": form.get("cut_count"),
     }
-    lead = Lead(
+    new = NewLead(
         product_id=product.id,
         product_name=product.name,
         name=values["name"][:120],
@@ -77,12 +64,10 @@ async def create_lead(request: Request, session: AsyncSession = Depends(get_sess
         comment=values["comment"][:2000],
         calc=calc,
     )
-    session.add(lead)
-    await session.commit()
-    await notify_new_lead(lead)
+    lead = await create_lead(session, new)
 
     if _is_fetch(request):
-        return templates.TemplateResponse(request, "leads/_done.html", {"lead": lead_receipt(lead)})
+        return templates.TemplateResponse(request, "leads/_done.html", {"lead": lead})
     meta = PageMeta(
         title=f"Заявка принята | {settings.site_name}",
         description="",
@@ -90,7 +75,7 @@ async def create_lead(request: Request, session: AsyncSession = Depends(get_sess
         canonical=absolute("/"),
         robots="noindex, nofollow",
     )
-    context = {"meta": meta, "lead": lead_receipt(lead), "product": product_link(product)}
+    context = {"meta": meta, "lead": lead, "product": product_link(product)}
     return templates.TemplateResponse(request, "leads/done_page.html", context)
 
 

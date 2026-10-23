@@ -24,7 +24,6 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.core.maps import yandex_map
 from app.core.templating import format_rub, templates
-from app.leads.service import lead_receipt
 from app.seo.meta import PageMeta, absolute
 
 router = APIRouter()
@@ -167,7 +166,7 @@ async def cart_checkout(request: Request, session: AsyncSession = Depends(get_se
 
     lead = await create_order(session, form, lines, quote)
     request.state.cart_count = 0  # в шапке страницы «Заказ принят» корзина уже пустая
-    context = {"meta": _meta("Заказ принят"), "lead": lead_receipt(lead), "payments": PAYMENTS}
+    context = {"meta": _meta("Заказ принят"), "lead": lead, "payments": PAYMENTS}
     response = templates.TemplateResponse(request, "cart/done.html", context, headers=NOINDEX)
     store.save(response, request, [])  # корзина оформлена — очищаем
     return response

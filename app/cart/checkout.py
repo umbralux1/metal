@@ -7,7 +7,7 @@ from pydantic import BaseModel, model_validator
 
 from app.delivery.selection import VehicleQuote
 from app.leads.inn import is_valid_inn
-from app.leads.router import normalize_phone
+from app.leads.phone import normalize_phone
 
 DELIVERY = {"delivery": "Доставка", "pickup": "Самовывоз со склада"}
 BUYER_TYPES = {"person": "Частное лицо", "company": "Организация или ИП"}

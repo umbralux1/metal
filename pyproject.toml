@@ -61,6 +61,13 @@ forbidden_modules = ["app.delivery.models"]
 allow_indirect_imports = true  # через app.delivery.service — можно, напрямую — нет
 
 [[tool.importlinter.contracts]]
+name = "Заявки снаружи — только через app.leads.service и чистые модули"
+type = "forbidden"
+source_modules = ["app.cart", "app.catalog", "app.pages", "app.seo", "app.delivery", "app.core"]
+forbidden_modules = ["app.leads.models", "app.leads.router", "app.leads.notify"]
+allow_indirect_imports = true  # через app.leads.service — можно, напрямую — нет
+
+[[tool.importlinter.contracts]]
 name = "Чистые функции: без базы, сети и веба"
 type = "forbidden"
 source_modules = [
@@ -70,6 +77,7 @@ source_modules = [
     "app.delivery.pricing",
     "app.delivery.cargo",
     "app.delivery.selection",
+    "app.leads.phone",
 ]
 forbidden_modules = ["sqlalchemy", "httpx", "fastapi", "starlette", "app.core.db", "app.core.config"]
 
