@@ -179,7 +179,7 @@ async def test_vehicle_names_are_unique(empty_vehicles):
 
 
 def test_startup_seeds_vehicles_even_without_demo(monkeypatch):
-    import app.core.startup as startup
+    import app.bootstrap as startup
 
     called = []
 

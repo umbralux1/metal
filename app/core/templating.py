@@ -46,24 +46,8 @@ def _phone_href(phone: str) -> str:
     return f"tel:{digits}"
 
 
-def _register_drawings() -> None:
-    # Импорт здесь, чтобы не было циклической зависимости модели ↔ шаблоны
-    from app.catalog.drawings import category_icon, hero_svg
-
-    templates.env.globals["category_icon"] = category_icon
-    templates.env.globals["hero_svg"] = hero_svg
-
-
 templates.env.globals["phone_href"] = _phone_href
 templates.env.globals["static_url"] = static_url
 
 
-def _cart_count(request) -> int:
-    from app.cart.store import count
-
-    return count(request)
-
-
-templates.env.globals["cart_count"] = _cart_count
 templates.env.globals["current_year"] = lambda: date.today().year
-_register_drawings()

@@ -7,11 +7,13 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.admin.views import setup_admin
 from app.cart.router import router as cart_router
+from app.cart.store import count as cart_count
 from app.catalog import repository as repo
+from app.catalog.drawings import category_icon, hero_svg
+from app.catalog.nav import NavMiddleware
 from app.catalog.router import router as catalog_router
 from app.core.config import settings
 from app.core.db import SessionLocal, engine
-from app.core.nav import NavMiddleware
 from app.core.static import STATIC_DIR, VersionedStaticFiles
 from app.core.templating import templates
 from app.leads.router import router as leads_router
@@ -36,6 +38,8 @@ def create_app() -> FastAPI:
         redoc_url=None,
         openapi_url="/openapi.json" if settings.debug else None,
     )
+    # Функции шаблонов из модулей выше core: иконки разделов, картинка на главной, счётчик корзины в шапке
+    templates.env.globals.update(category_icon=category_icon, hero_svg=hero_svg, cart_count=cart_count)
     app.add_middleware(NavMiddleware)
     app.add_middleware(CanonicalUrlMiddleware)
     if not settings.allow_indexing:

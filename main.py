@@ -24,7 +24,7 @@ def server_options(env: dict[str, str]) -> dict:
 if __name__ == "__main__":
     import uvicorn
 
-    from app.core.startup import prepare_database
+    from app.bootstrap import prepare_database
 
     options = server_options(dict(os.environ))
     # Один раз в основном процессе: при автоперезагрузке код перезапускается без повторных миграций

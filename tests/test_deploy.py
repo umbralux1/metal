@@ -143,7 +143,7 @@ def test_migration_retries_lock_timeout_then_succeeds(monkeypatch):
     """Миграция не висит на занятой таблице: ошибка ожидания блокировки → повтор → успех."""
     from sqlalchemy.exc import OperationalError
 
-    from app.core import startup
+    from app import bootstrap as startup
 
     calls = []
 
@@ -161,7 +161,7 @@ def test_migration_gives_clear_error_after_attempts(monkeypatch):
     import pytest
     from sqlalchemy.exc import OperationalError
 
-    from app.core import startup
+    from app import bootstrap as startup
 
     def always_fails(config, revision):
         raise OperationalError("connect", {}, Exception("connection timeout expired"))

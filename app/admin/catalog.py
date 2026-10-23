@@ -18,10 +18,10 @@ from app.admin.money import kop_to_rub, rub_to_kop
 from app.catalog import paths
 from app.catalog.landings import generate_landings
 from app.catalog.models import Category, FilterLanding, Price, Product, Unit
+from app.catalog.nav import reset_nav_cache
 from app.catalog.repository import FILTERABLE_COLUMNS
 from app.catalog.utils import normalize_search, slugify
 from app.core.db import SessionLocal
-from app.core.nav import reset_nav_cache
 from app.core.templating import format_rub
 
 UNIT_CHOICES = [(u.value, {"m": "Метр", "t": "Тонна", "pcs": "Штука", "m2": "Квадратный метр"}[u.value]) for u in Unit]

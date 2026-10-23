@@ -17,8 +17,8 @@ from sqlalchemy import select, text, update
 
 from app.catalog.demo_catalog import _tree
 from app.catalog.models import Category, Product
+from app.catalog.nav import reset_nav_cache
 from app.core.db import SessionLocal
-from app.core.nav import reset_nav_cache
 from tests.helpers import run_alembic
 
 HIDDEN_AT_LAUNCH = {

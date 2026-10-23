@@ -27,7 +27,7 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-# Сколько миграция ждёт блокировку таблицы. Дольше — ошибка и повтор (app/core/startup.py), а не вечное ожидание.
+# Сколько миграция ждёт блокировку таблицы. Дольше — ошибка и повтор (app/bootstrap.py), а не вечное ожидание.
 LOCK_TIMEOUT = "15s"
 
 
