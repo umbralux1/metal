@@ -11,6 +11,7 @@ from app.cart.checkout import CheckoutError, CheckoutForm, order_comment, order_
 from app.cart.store import CartItem
 from app.catalog.calculator import CalcError, CalcInput, CalcResult, calculate, parse_input
 from app.catalog.models import Product
+from app.catalog.read_models import ProductLink, product_link
 from app.core.config import settings
 from app.delivery.cargo import CargoSpec
 from app.delivery.selection import CutHint, VehicleQuote, cut_hint, quote_vehicles
@@ -27,6 +28,24 @@ class Line:
     calc: CalcResult | None
     error: str | None = None
     inp: CalcInput | None = None
+
+
+@dataclass(frozen=True)
+class CartLineView:
+    """Позиция корзины для страницы: товар — ссылкой, без записи из базы."""
+
+    index: int
+    item: CartItem
+    product: ProductLink | None
+    calc: CalcResult | None
+    error: str | None
+
+
+def cart_line_views(lines: list[Line]) -> list[CartLineView]:
+    return [
+        CartLineView(line.index, line.item, product_link(line.product) if line.product else None, line.calc, line.error)
+        for line in lines
+    ]
 
 
 @dataclass(frozen=True)

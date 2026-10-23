@@ -7,11 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog.calculator import CalcError, calculate, parse_input
 from app.catalog.models import Product
+from app.catalog.read_models import product_link
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.templating import templates
 from app.leads.models import Lead
 from app.leads.notify import notify_new_lead
+from app.leads.service import lead_receipt
 from app.seo.meta import PageMeta, absolute
 
 router = APIRouter()
@@ -41,7 +43,12 @@ async def create_lead(request: Request, session: AsyncSession = Depends(get_sess
     values = {k: str(form.get(k, "")).strip() for k in ("name", "phone", "comment")}
 
     def form_error(message: str, status: int = 422):
-        context = {"product": product, "params": form, "values": values, "error": message}
+        context = {
+            "product": product_link(product) if product else None,
+            "params": form,
+            "values": values,
+            "error": message,
+        }
         return templates.TemplateResponse(request, "leads/_form.html", context, status_code=status)
 
     if form.get("website"):  # поле-ловушка для ботов, люди его не видят
@@ -76,7 +83,7 @@ async def create_lead(request: Request, session: AsyncSession = Depends(get_sess
     await notify_new_lead(lead)
 
     if _is_fetch(request):
-        return templates.TemplateResponse(request, "leads/_done.html", {"lead": lead})
+        return templates.TemplateResponse(request, "leads/_done.html", {"lead": lead_receipt(lead)})
     meta = PageMeta(
         title=f"Заявка принята | {settings.site_name}",
         description="",
@@ -84,7 +91,8 @@ async def create_lead(request: Request, session: AsyncSession = Depends(get_sess
         canonical=absolute("/"),
         robots="noindex, nofollow",
     )
-    return templates.TemplateResponse(request, "leads/done_page.html", {"meta": meta, "lead": lead, "product": product})
+    context = {"meta": meta, "lead": lead_receipt(lead), "product": product_link(product)}
+    return templates.TemplateResponse(request, "leads/done_page.html", context)
 
 
 def _int(raw) -> int:

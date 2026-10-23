@@ -11,6 +11,7 @@ from app.cart.checkout import BUYER_TYPES, DELIVERY, PAYMENTS, CheckoutError, Ch
 from app.cart.service import (
     DeliveryOptions,
     Line,
+    cart_line_views,
     create_order,
     get_product,
     list_cart_lines,
@@ -23,6 +24,7 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.core.maps import yandex_map
 from app.core.templating import format_rub, templates
+from app.leads.service import lead_receipt
 from app.seo.meta import PageMeta, absolute
 
 router = APIRouter()
@@ -32,7 +34,7 @@ NOINDEX = {"X-Robots-Tag": "noindex, nofollow"}
 def _cart_context(lines: list[Line], options: DeliveryOptions, values: dict[str, str]) -> dict[str, Any]:
     return {
         "meta": _meta("Корзина"),
-        "lines": lines,
+        "lines": cart_line_views(lines),
         "total_kop": sum(line.calc.total_kop for line in lines if line.calc),
         "has_errors": any(line.error for line in lines),
         "values": values,
@@ -165,7 +167,7 @@ async def cart_checkout(request: Request, session: AsyncSession = Depends(get_se
 
     lead = await create_order(session, form, lines, quote)
     request.state.cart_count = 0  # в шапке страницы «Заказ принят» корзина уже пустая
-    context = {"meta": _meta("Заказ принят"), "lead": lead, "lines": lines, "payments": PAYMENTS}
+    context = {"meta": _meta("Заказ принят"), "lead": lead_receipt(lead), "payments": PAYMENTS}
     response = templates.TemplateResponse(request, "cart/done.html", context, headers=NOINDEX)
     store.save(response, request, [])  # корзина оформлена — очищаем
     return response

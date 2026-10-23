@@ -48,9 +48,8 @@ def _phone_href(phone: str) -> str:
 
 def _register_drawings() -> None:
     # Импорт здесь, чтобы не было циклической зависимости модели ↔ шаблоны
-    from app.catalog.drawings import category_icon, hero_svg, section_svg
+    from app.catalog.drawings import category_icon, hero_svg
 
-    templates.env.globals["section_svg"] = section_svg
     templates.env.globals["category_icon"] = category_icon
     templates.env.globals["hero_svg"] = hero_svg
 

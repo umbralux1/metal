@@ -7,6 +7,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog.models import Category, FilterLanding, Product
+from app.catalog.read_models import node_link
 from app.catalog.repository import visible_category, visible_landing, visible_product
 from app.core.config import settings
 from app.core.db import get_session
@@ -40,7 +41,7 @@ async def home(request: Request, session: AsyncSession = Depends(get_session)):
         "home.html",
         {
             "meta": meta,
-            "landings": list(landings),
+            "landings": [node_link(item) for item in landings],
             "jsonld": [jsonld.to_script(jsonld.organization())],
         },
     )

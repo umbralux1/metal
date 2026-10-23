@@ -9,6 +9,15 @@ from app.catalog import repository as repo
 from app.catalog.calculator import CalcError, calculate, default_input, parse_input
 from app.catalog.landings import product_seo_text
 from app.catalog.models import Category, FilterLanding, Product
+from app.catalog.read_models import (
+    node_link,
+    node_view,
+    product_card,
+    product_link,
+    product_row,
+    row_page,
+    size_link,
+)
 from app.catalog.seo import category_meta, item_list_jsonld, landing_meta, piece_price_kop, product_jsonld, product_meta
 from app.catalog.utils import fix_layout
 from app.core.config import settings
@@ -46,7 +55,7 @@ async def catalog_index(request: Request, session: AsyncSession = Depends(get_se
         "catalog/index.html",
         {
             "meta": meta,
-            "categories": categories,
+            "categories": [node_link(c) for c in categories],
             "breadcrumbs": crumbs,
             "jsonld": [jsonld.to_script(jsonld.breadcrumbs(crumbs))],
         },
@@ -76,7 +85,7 @@ async def search(request: Request, q: str = "", session: AsyncSession = Depends(
     if query and not found and (fixed := fix_layout(query)):
         found = await repo.search_products(session, fixed)
         corrected = fixed if found else None
-    products = repo.ProductPage(items=found, total=len(found), page=1, pages=1)
+    products = row_page(found, total=len(found), page=1, pages=1)
     meta = PageMeta(
         title=f"Поиск «{query}» | {settings.site_name}" if query else f"Поиск по каталогу | {settings.site_name}",
         description="",
@@ -115,10 +124,10 @@ async def _render_category(request: Request, session: AsyncSession, category: Ca
     crumbs = _crumbs(await repo.breadcrumb_categories(session, category.path))
     context = {
         "meta": category_meta(request, category, min_kop),
-        "node": category,
-        "children": await repo.child_categories(session, category),
-        "landings": await repo.category_landings(session, category),
-        "products": products,
+        "node": node_view(category),
+        "children": [node_link(c) for c in await repo.child_categories(session, category)],
+        "landings": [node_link(item) for item in await repo.category_landings(session, category)],
+        "products": row_page(products.items, products.total, products.page, products.pages),
         "breadcrumbs": crumbs,
         "jsonld": [
             jsonld.to_script(jsonld.breadcrumbs(crumbs)),
@@ -140,10 +149,10 @@ async def _render_landing(request: Request, session: AsyncSession, landing: Filt
     siblings = [item for item in await repo.category_landings(session, category) if item.id != landing.id]
     context = {
         "meta": landing_meta(request, landing, min_kop),
-        "node": landing,
+        "node": node_view(landing),
         "children": [],
-        "landings": siblings,
-        "products": products,
+        "landings": [node_link(item) for item in siblings],
+        "products": row_page(products.items, products.total, products.page, products.pages),
         "breadcrumbs": crumbs,
         "jsonld": [
             jsonld.to_script(jsonld.breadcrumbs(crumbs)),
@@ -175,7 +184,7 @@ async def calc_partial(request: Request, product_id: int, session: AsyncSession 
     product = await session.get(Product, product_id)
     if product is None or not product.is_active:
         raise HTTPException(status_code=404)
-    context = {"product": product, **_calc_context(product, request.query_params)}
+    context = {"product": product_link(product), **_calc_context(product, request.query_params)}
     response = templates.TemplateResponse(request, "catalog/_calc_result.html", context)
     response.headers["X-Robots-Tag"] = "noindex"
     return response
@@ -190,12 +199,13 @@ async def _render_product(request: Request, session: AsyncSession, product: Prod
     neighbours = [
         item for item in await repo.category_landings(session, neighbour_category) if not size or item.id != size.id
     ]
+    same_size = await repo.same_size_products(session, size, product) if size else []
     context = {
         "meta": product_meta(request, product),
-        "product": product,
-        "size": size,
-        "same_size": await repo.same_size_products(session, size, product) if size else [],
-        "neighbours": neighbours,
+        "product": product_card(product),
+        "size": size_link(size) if size else None,
+        "same_size": [product_row(p) for p in same_size],
+        "neighbours": [node_link(item) for item in neighbours],
         "piece_kop": piece_price_kop(product),
         "auto_text": None if product.seo_text else product_seo_text(product),
         **_calc_context(product, request.query_params),
