@@ -6,7 +6,7 @@ PY = $(if $(wildcard $(VENV)/bin/python),$(VENV)/bin/python,python3)
 COMPOSE := docker compose
 
 .DEFAULT_GOAL := help
-.PHONY: help setup venv install env db db-stop db-logs db-shell db-reset migrate migration seed landings \
+.PHONY: help setup venv install browsers env db db-stop db-logs db-shell db-reset migrate migration seed landings \
         run test lint types imports audit format check deploy clean
 
 help: ## Список команд
@@ -14,7 +14,7 @@ help: ## Список команд
 
 # ---------- Первый запуск ----------
 
-setup: venv install env db migrate seed ## Всё с нуля: окружение, зависимости, .env, база, таблицы, демо-товары
+setup: venv install browsers env db migrate seed ## Всё с нуля: окружение, зависимости, браузер для тестов, .env, база, демо-товары
 	@echo "Готово. Запуск: make run → http://127.0.0.1:8000"
 
 venv: ## Создать виртуальное окружение venv (если его нет)
@@ -22,6 +22,9 @@ venv: ## Создать виртуальное окружение venv (если
 
 install: ## Установить зависимости (requirements-dev.txt)
 	$(VENV)/bin/python -m pip install -r requirements-dev.txt
+
+browsers: ## Браузер WebKit (движок Safari) для браузерных тестов, один раз после install
+	$(PY) -m playwright install webkit
 
 env: ## Создать .env из .env.example (существующий не трогает)
 	@test -f .env && echo ".env уже есть — не трогаю" || (cp .env.example .env && echo "Создан .env — впишите свои данные")
