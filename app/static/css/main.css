@@ -258,15 +258,18 @@ p { margin: 0 0 12px; }
   background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius-m);
   box-shadow: 0 18px 40px rgba(27, 38, 48, .14); padding: 6px;
 }
+/* Название — первой строкой на всю ширину и переносится: список шириной с поле поиска, в одну строку с типом
+   и ценой название обрезалось до «Арма…» (BUG-005). Тип и цена — второй строкой. */
 .suggest-item {
-  display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; align-items: baseline; gap: 10px;
-  padding: 10px 12px; border-radius: 7px; text-decoration: none; color: var(--ink);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name name" "kind meta";
+  align-items: baseline; gap: 2px 10px;
+  padding: 8px 12px; border-radius: 7px; text-decoration: none; color: var(--ink);
 }
 .suggest-item:hover, .suggest-item.is-active { background: #f1f4f6; color: var(--ink); }
-.suggest-kind { font-size: 12px; color: var(--muted); }
-.suggest-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suggest-kind { grid-area: kind; font-size: 12px; color: var(--muted); }
+.suggest-name { grid-area: name; font-weight: 500; overflow-wrap: anywhere; }
 .suggest-name mark { background: none; color: var(--accent); font-weight: 700; }
-.suggest-meta { font-size: 14px; color: var(--muted); white-space: nowrap; }
+.suggest-meta { grid-area: meta; font-size: 14px; color: var(--muted); white-space: nowrap; }
 .suggest-product .suggest-meta { color: var(--ink); font-weight: 600; }
 .suggest-all { display: block; margin-top: 4px; border-top: 1px solid var(--line-soft); border-radius: 0 0 7px 7px; color: var(--accent); font-weight: 600; }
 .suggest-note { margin: 6px 12px 8px; font-size: 14px; color: var(--muted); }
@@ -549,7 +552,6 @@ a.catalog-btn:hover { color: #fff; }
   .cart-line-total { grid-area: total; }
   .cart-remove { grid-area: remove; align-self: start; }
   .related-table th:nth-child(3), .related-table td:nth-child(3) { display: none; }
-  .suggest-item { grid-template-columns: minmax(0, 1fr) auto; }
   .suggest-kind { display: none; }
   .contacts-map, .contacts-map iframe { min-height: 360px; }
 }

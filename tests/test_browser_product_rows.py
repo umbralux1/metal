@@ -13,15 +13,8 @@ Safari 26 на компьютере не применяет `position: relative`
 элемент ничем не перекрыт, и при этой ошибке ждал бы до тайм-аута вместо того, чтобы кликнуть.
 """
 
-import os
-import socket
-import subprocess
-import sys
-import time
 from urllib.parse import quote, urlparse
 
-import httpx
-import pytest
 from playwright.async_api import async_playwright
 
 SEARCH = "Арматура 12"  # три строки: А400, А1, А500С
@@ -29,30 +22,6 @@ SEARCH = "Арматура 12"  # три строки: А400, А1, А500С
 SAFARI_ROWS = """() => document.querySelectorAll('.products tbody tr').forEach(tr => {
     if (getComputedStyle(tr).display === 'table-row') tr.style.setProperty('position', 'static', 'important');
 })"""
-
-
-@pytest.fixture(scope="module")
-def live_server():
-    """Сайт в отдельном процессе на свободном порту — браузеру нужен настоящий HTTP. База — тестовая."""
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        port = s.getsockname()[1]
-    server = subprocess.Popen(  # noqa: S603 — свой сервер из своего окружения
-        [sys.executable, "-m", "uvicorn", "app.main:app", "--port", str(port), "--log-level", "warning"],
-        env=os.environ.copy(),
-    )
-    url = f"http://127.0.0.1:{port}"
-    try:
-        for _ in range(100):
-            try:
-                httpx.get(url + "/", timeout=1)
-                break
-            except httpx.TransportError:
-                time.sleep(0.1)
-        yield url
-    finally:
-        server.terminate()
-        server.wait(timeout=10)
 
 
 async def test_click_anywhere_in_row_opens_that_product(live_server):

@@ -1,4 +1,8 @@
 import os
+import socket
+import subprocess
+import sys
+import time
 
 # Админка в тестах включена с известным паролем
 os.environ["ADMIN_USERNAME"] = "admin"
@@ -75,3 +79,27 @@ def migrations_db(monkeypatch):
     with admin.connect() as conn:
         conn.execute(text("DROP DATABASE IF EXISTS metal_migrations WITH (FORCE)"))
     admin.dispose()
+
+
+@pytest.fixture(scope="session")
+def live_server():
+    """Сайт в отдельном процессе на свободном порту — браузеру нужен настоящий HTTP. База — тестовая."""
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    server = subprocess.Popen(  # noqa: S603 — свой сервер из своего окружения
+        [sys.executable, "-m", "uvicorn", "app.main:app", "--port", str(port), "--log-level", "warning"],
+        env=os.environ.copy(),
+    )
+    url = f"http://127.0.0.1:{port}"
+    try:
+        for _ in range(100):
+            try:
+                httpx.get(url + "/", timeout=1)
+                break
+            except httpx.TransportError:
+                time.sleep(0.1)
+        yield url
+    finally:
+        server.terminate()
+        server.wait(timeout=10)
