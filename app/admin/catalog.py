@@ -250,11 +250,15 @@ class ProductAdmin(ModelView, model=Product):
         old = request.state.old_path
         async with SessionLocal() as session:
             await self._save_prices(session, model, request.state.price_input)
-            if old and old != model.path:
-                await paths.add_redirect(session, old, model.path)
             await session.commit()
-            # Новый размер — новая посадочная; товар переезжает внутрь посадочной своего размера
-            await generate_landings(session, fresh_ids={model.id} if is_created else None)
+            # Новый размер — новая посадочная; товар переезжает внутрь посадочной своего размера. Адрес до переезда
+            # существовал только внутри этого сохранения — редирект с него не нужен (fresh_ids), ставим один:
+            # со старого адреса на итоговый
+            await generate_landings(session, fresh_ids={model.id})
+            final = await session.scalar(select(Product.path).where(Product.id == model.id))
+            if old and final and old != final:
+                await paths.add_redirect(session, old, final)
+                await session.commit()
 
     @staticmethod
     async def _save_prices(session, model: Product, wanted: dict[Unit, int | None]) -> None:
