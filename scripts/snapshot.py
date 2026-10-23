@@ -4,15 +4,15 @@
     make snapshot-diff   — снимок «после» в .snapshots/after и сравнение с «до»
 
 Каждый снимок снимается с нуля на отдельной базе metal_snapshot (на том же сервере, что DATABASE_URL): она
-пересоздаётся, строится миграциями и наполняется полным демо-каталогом, как `python main.py` с SEED_DEMO=true.
-Базы из DATABASE_URL и тестовую не трогает.
+создаётся, строится миграциями и наполняется полным демо-каталогом, как `python main.py` с SEED_DEMO=true,
+а после снимка удаляется. Базы из DATABASE_URL и тестовую не трогает.
 
-В снимке (~3 900 ответов, около минуты): страницы из sitemap, вторые страницы списков, товары с резкой
-и калькулятор с 11 наборами параметров, поиск и подсказки, заявки с карточки товара, сценарий корзины
+В снимке (~3 750 ответов, около 40 секунд): страницы из sitemap, вторые страницы списков, товары
+и калькулятор с 11 наборами параметров (в том числе резка), поиск и подсказки, заявки с карточки товара, сценарий корзины
 и оформления, страницы и сохранения админки, записи заявок и таблиц каталога в базе.
 
 Перед сравнением из ответов убирается то, что меняется само: время и отпечатки ?v=… у CSS и JS. Хранится
-сжато (~6–7 МБ на снимок), одинаковые ответы — один раз. Вёрстку снимок не ловит: сравнивается HTML.
+сжато (~3,5 МБ на снимок), одинаковые ответы — один раз. Вёрстку снимок не ловит: сравнивается HTML.
 """
 
 import asyncio
@@ -113,8 +113,8 @@ def load(path: Path) -> list[Entry]:
 # ---------- Сбор снимка: база, сайт, заявки, корзина, админка ----------
 
 
-def prepare_database() -> str:
-    """Пересоздаёт metal_snapshot и строит её как `python main.py` с демо-каталогом. Возвращает её адрес."""
+def _on_server(*statements: str) -> str:
+    """Выполняет команды на сервере базы (через служебную базу postgres). Возвращает адрес metal_snapshot."""
     from sqlalchemy import create_engine, text
     from sqlalchemy.engine import make_url
 
@@ -123,10 +123,19 @@ def prepare_database() -> str:
     url = make_url(settings.database_url).set(database=SNAPSHOT_DB)
     server = create_engine(url.set(database="postgres", drivername="postgresql+psycopg"), isolation_level="AUTOCOMMIT")
     with server.connect() as conn:
-        conn.execute(text(f"DROP DATABASE IF EXISTS {SNAPSHOT_DB} WITH (FORCE)"))
-        conn.execute(text(f"CREATE DATABASE {SNAPSHOT_DB}"))
+        for statement in statements:
+            conn.execute(text(statement))
     server.dispose()
-    address = url.render_as_string(hide_password=False)
+    return url.render_as_string(hide_password=False)
+
+
+def drop_database() -> None:
+    _on_server(f"DROP DATABASE IF EXISTS {SNAPSHOT_DB} WITH (FORCE)")
+
+
+def prepare_database() -> str:
+    """Пересоздаёт metal_snapshot и строит её как `python main.py` с демо-каталогом. Возвращает её адрес."""
+    address = _on_server(f"DROP DATABASE IF EXISTS {SNAPSHOT_DB} WITH (FORCE)", f"CREATE DATABASE {SNAPSHOT_DB}")
     env = {**os.environ, "DATABASE_URL": address, "SEED_DEMO": "true", "AUTO_LANDINGS": "true"}
     built = subprocess.run(  # noqa: S603 — свой запуск из своего окружения
         [sys.executable, "-c", "from app.bootstrap import prepare_database; prepare_database()"],
@@ -398,17 +407,20 @@ async def record_all() -> list[Entry]:
 
 def take(name: str) -> list[Entry]:
     print(f"Снимок «{name}»: база {SNAPSHOT_DB} с демо-каталогом…", flush=True)
-    address = prepare_database()
-    from app.core.config import settings
+    try:
+        address = prepare_database()
+        from app.core.config import settings
 
-    # До первого импорта app.core.db: движок базы создаётся по этому адресу
-    settings.database_url = address
-    settings.admin_username, settings.admin_password = ADMIN_USER, ADMIN_PASSWORD
-    import app.main  # noqa: F401 — настраивает логи приложения, их глушим ниже
+        # До первого импорта app.core.db: движок базы создаётся по этому адресу
+        settings.database_url = address
+        settings.admin_username, settings.admin_password = ADMIN_USER, ADMIN_PASSWORD
+        import app.main  # noqa: F401 — настраивает логи приложения, их глушим ниже
 
-    logging.disable(logging.ERROR)  # ошибки форм админка пишет в лог с трассировкой — в отчёте они лишние
-    print("Обхожу сайт, заявки, корзину и админку…", flush=True)
-    entries = asyncio.run(record_all())
+        logging.disable(logging.ERROR)  # ошибки форм админка пишет в лог с трассировкой — в отчёте они лишние
+        print("Обхожу сайт, заявки, корзину и админку…", flush=True)
+        entries = asyncio.run(record_all())
+    finally:
+        drop_database()  # база нужна только на время снимка
     save(entries, SNAPSHOTS_DIR / name)
     print(f"Сохранено {len(entries)} ответов в {SNAPSHOTS_DIR / name}", flush=True)
     return entries
