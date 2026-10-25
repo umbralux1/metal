@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -26,6 +26,11 @@ def format_local_time(moment: datetime | None) -> str:
     return moment.astimezone(ZoneInfo(settings.timezone)).strftime("%d.%m.%Y %H:%M")
 
 
+def site_year(moment: datetime) -> int:
+    """Год в часовом поясе сайта (TIMEZONE): в новогоднюю ночь по UTC ещё старый год, а по Москве уже новый."""
+    return moment.astimezone(ZoneInfo(settings.timezone)).year
+
+
 def format_decimal(value) -> str:
     """Decimal, int или float → «11,7», «1», «0,888»."""
     if value is None:
@@ -50,4 +55,4 @@ templates.env.globals["phone_href"] = _phone_href
 templates.env.globals["static_url"] = static_url
 
 
-templates.env.globals["current_year"] = lambda: date.today().year
+templates.env.globals["current_year"] = lambda: site_year(datetime.now(UTC))

@@ -14,6 +14,7 @@ from sqlalchemy import delete
 from app.catalog.models import Redirect
 from app.core.config import Settings, settings
 from app.core.db import SessionLocal
+from app.core.templating import site_year
 from app.leads.models import Lead
 
 # Вечер по UTC — уже следующий день по Москве: тест ловит и часы, и дату, оставшиеся по UTC.
@@ -89,3 +90,8 @@ async def test_time_follows_timezone_setting(admin, lead_id, monkeypatch):
     monkeypatch.setattr(settings, "timezone", "Asia/Yekaterinburg")  # UTC+5
     html = (await admin.get(f"/admin/lead/details/{lead_id}")).text
     assert "15.01.2030 03:30" in html
+
+
+def test_footer_year_follows_site_timezone(moscow):
+    """Год в подвале — по часовому поясу сайта: в новогоднюю ночь в UTC ещё 31 декабря, а по Москве уже 2027."""
+    assert site_year(datetime(2026, 12, 31, 21, 30, tzinfo=UTC)) == 2027

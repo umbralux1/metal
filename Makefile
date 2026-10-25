@@ -70,8 +70,9 @@ run: db ## Запустить сайт локально (база подниме
 test: db ## Тесты (pytest)
 	$(PY) -m pytest
 
-lint: ## Проверка кода (ruff check)
+lint: ## Проверка кода и оформления (ruff check, ruff format --check)
 	$(PY) -m ruff check .
+	$(PY) -m ruff format --check .
 
 types: ## Проверка типов (mypy): строго для новых модулей
 	$(PY) -m mypy
@@ -82,9 +83,9 @@ imports: ## Контракты зависимостей модулей (import-l
 audit: ## Известные уязвимости в зависимостях (pip-audit, нужен интернет)
 	$(PY) -m pip_audit -r requirements.txt
 
-format: ## Привести оформление кода к ruff (миграции Alembic не трогает)
+format: ## Привести оформление кода к ruff (миграции не трогает — исключены в pyproject.toml)
 	$(PY) -m ruff check --fix .
-	$(PY) -m ruff format --exclude migrations .
+	$(PY) -m ruff format .
 
 check: lint types imports test ## Всё, что проверяем перед коммитом: ruff, mypy, import-linter, pytest
 
