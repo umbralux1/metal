@@ -28,6 +28,16 @@
 
 ## Архитектура
 
+**Числа форматируются и разбираются в каждом модуле заново (найдено 26.10.2026).** Число → «11,7»
+(`f"{value.normalize():f}".replace(".", ",")`) написано 9 раз: `core/templating.format_decimal`, `catalog/landings.num`,
+`catalog/seo.num_ru`, `catalog/drawings`, `catalog/calculator._num`, `Product.size_label`, `catalog/router._params_from`,
+`cart/router._summary`, `cart/store.add`. Строка «11,7» → число — 5 раз, и копии уже разошлись:
+`calculator._parse_decimal` и `checkout.parse_distance_km` убирают пробелы, `admin/money.rub_to_kop` — ещё и неразрывный
+пробел и «₽», а `admin/delivery.parse_length_m` и `cart/store.add` пробелы не убирают («1 000» в цене — можно,
+в длине груза — ошибка). Решение: одна функция форматирования и одна разбора в `core` (запятая, пробелы, неразрывный
+пробел); проверки диапазонов остаются у полей. Защита от возврата — тест-правило, как для `static_url`: вне `core`
+нет `.replace(".", ",")` и разбора чисел своими силами. Проверка — `make snapshot` / `make snapshot-diff`.
+
 **Большие файлы.** `app/catalog/demo_catalog.py` (1054 строки) — это данные, не код, разбивать не нужно.
 
 ## Корзина
