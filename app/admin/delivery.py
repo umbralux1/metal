@@ -1,6 +1,6 @@
 """Раздел «Доставка → Машины»: машины и тарифы. Цены в форме в рублях, в базе — копейки."""
 
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Any
 
 from sqladmin import ModelView
@@ -11,7 +11,8 @@ from wtforms.validators import InputRequired, NumberRange
 
 from app.admin.money import kop_to_rub, rub_to_kop
 from app.core.db import SessionLocal
-from app.core.templating import format_decimal, format_rub
+from app.core.numbers import format_decimal, parse_decimal
+from app.core.templating import format_rub
 from app.delivery.models import DeliveryVehicle
 
 # Поле формы в рублях → колонка в копейках: (поле, колонка, подпись, подсказка, ошибка, если пусто)
@@ -29,12 +30,13 @@ PRICE_FIELDS = (
 
 def parse_length_m(raw: Any) -> Decimal:
     """«4,2» → Decimal("4.2"). Длина груза в метрах, больше нуля, не больше двух знаков после запятой."""
-    text = str(raw or "").replace(",", ".").strip()
     try:
-        value = Decimal(text)
-    except InvalidOperation:
-        raise ValueError(f"Длина груза «{raw}»: введите число, например 6 или 13,5") from None
-    if not value.is_finite() or value <= 0:
+        value = parse_decimal(raw)
+    except ValueError:
+        value = None
+    if value is None:
+        raise ValueError(f"Длина груза «{raw}»: введите число, например 6 или 13,5")
+    if value <= 0:
         raise ValueError("Длина груза должна быть больше 0")
     if value != value.quantize(Decimal("0.01")) or value >= 1000:
         raise ValueError(f"Длина груза «{raw}»: не больше двух знаков после запятой и меньше 1000 м")

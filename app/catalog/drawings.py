@@ -10,6 +10,7 @@ from itertools import count
 from markupsafe import Markup, escape
 
 from app.catalog.models import Product
+from app.core.numbers import format_decimal
 
 INK = "#1b2630"
 DIM = "#2b4acb"
@@ -30,11 +31,6 @@ def profile_of(product: Product) -> str:
     if product.thickness_mm:
         return "plate"
     return "unknown"
-
-
-def _n(value: Decimal | float) -> str:
-    d = Decimal(str(value))
-    return f"{d.normalize():f}".replace(".", ",")
 
 
 def _defs(uid: str) -> str:
@@ -87,11 +83,11 @@ def _tube_rect(width_mm: Decimal, height_mm: Decimal, thickness_mm: Decimal, uid
     lead_x, lead_y = x0 + W - tv / 2, y0 + H * 0.72
     return (
         f'<path d="{outer} {inner}" fill-rule="evenodd" fill="url(#h{uid})" stroke="{INK}" stroke-width="1.6"/>'
-        + _hdim(x0, x0 + W, y0 - 22, y0 - 4, _n(width_mm), uid)
-        + _vdim(y0, y0 + H, x0 + W + 24, x0 + W + 4, _n(height_mm), uid)
+        + _hdim(x0, x0 + W, y0 - 22, y0 - 4, format_decimal(width_mm), uid)
+        + _vdim(y0, y0 + H, x0 + W + 24, x0 + W + 4, format_decimal(height_mm), uid)
         + f'<g stroke="{DIM}" stroke-width="1" fill="none"><circle cx="{lead_x}" cy="{lead_y}" r="2" fill="{DIM}"/>'
         f'<polyline points="{lead_x},{lead_y} {x0 + W + 20},{y0 + H + 26} {x0 + W + 64},{y0 + H + 26}"/></g>'
-        f'<text x="{x0 + W + 24}" y="{y0 + H + 21}" class="dim">t = {_n(thickness_mm)}</text>'
+        f'<text x="{x0 + W + 24}" y="{y0 + H + 21}" class="dim">t = {format_decimal(thickness_mm)}</text>'
     )
 
 
@@ -111,7 +107,7 @@ def _round(diameter_mm: Decimal, uid: str, ribbed: bool) -> str:
         + f'<g stroke="{INK}" stroke-width="0.8" stroke-dasharray="10 3 2 3">'
         f'<line x1="{cx - r - 28}" y1="{cy}" x2="{cx + r + 28}" y2="{cy}"/>'
         f'<line x1="{cx}" y1="{cy - r - 14}" x2="{cx}" y2="{cy + r + 14}"/></g>'
-        + _hdim(cx - r, cx + r, cy - r - 28, cy - 6, f"Ø{_n(diameter_mm)}", uid)
+        + _hdim(cx - r, cx + r, cy - r - 28, cy - 6, f"Ø{format_decimal(diameter_mm)}", uid)
     )
 
 
@@ -121,7 +117,7 @@ def _plate(thickness_mm: Decimal, uid: str) -> str:
     tv = max(min(t * 6, 60), 6)
     return (
         f'<rect x="{x0}" y="{y0}" width="{W}" height="{tv}" fill="url(#h{uid})" stroke="{INK}" stroke-width="1.6"/>'
-        + _vdim(y0, y0 + tv, x0 + W + 30, x0 + W + 4, _n(thickness_mm), uid)
+        + _vdim(y0, y0 + tv, x0 + W + 30, x0 + W + 4, format_decimal(thickness_mm), uid)
     )
 
 

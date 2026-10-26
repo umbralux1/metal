@@ -35,7 +35,7 @@
         {% if product.gost %}<tr><th scope="row">ГОСТ, ТУ</th><td>{{ product.gost }}</td></tr>{% endif %}
         {% if product.length_m %}<tr><th scope="row">Длина</th><td>{{ product.length_m | num }} м</td></tr>{% endif %}
         {% if product.weight_per_m_kg %}<tr><th scope="row">Вес 1 м</th><td>{{ product.weight_per_m_kg | num }} кг</td></tr>{% endif %}
-        {% if product.length_m and product.weight_per_m_kg %}<tr><th scope="row">Вес 1 шт.</th><td>{{ (product.length_m * product.weight_per_m_kg) | round(2) | string | replace('.', ',') }} кг</td></tr>{% endif %}
+        {% if product.length_m and product.weight_per_m_kg %}<tr><th scope="row">Вес 1 шт.</th><td>{{ (product.length_m * product.weight_per_m_kg) | round(2) | num }} кг</td></tr>{% endif %}
         {% if product.attrs and product.attrs.get('format') %}<tr><th scope="row">Формат листа</th><td>{{ product.attrs.get('format') }} мм</td></tr>{% endif %}
         {% if product.attrs and product.attrs.get('sheet_kg') %}<tr><th scope="row">Вес листа</th><td>{{ product.attrs.get('sheet_kg') | num }} кг</td></tr>{% endif %}
         {% if product.sku %}<tr><th scope="row">Артикул</th><td>{{ product.sku }}</td></tr>{% endif %}

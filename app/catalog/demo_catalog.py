@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog.models import Category, Price, Product, Unit
 from app.catalog.utils import normalize_search, slugify
+from app.core.numbers import format_decimal
 
 D = Decimal
 STEEL = 0.00785  # кг на мм² сечения × м длины
@@ -39,12 +40,6 @@ class Item:
 
 def _d(value: float, places: str = "0.001") -> Decimal:
     return D(str(value)).quantize(D(places), rounding=ROUND_HALF_UP)
-
-
-def _n(value: float) -> str:
-    """12 → «12», 1.5 → «1,5» — для названий."""
-    text = f"{D(str(value)).normalize():f}"
-    return text.replace(".", ",")
 
 
 def _rub(value: float) -> int:
@@ -96,7 +91,7 @@ def rebar(grade: str, gost: str, ton: int, diameters: list[int]) -> list[Item]:
 def profile_pipe(noun: str, ton: int, sizes: list[tuple[float, float, float]], gost: str = "ГОСТ 30245-2003"):
     return [
         long_item(
-            f"{noun} {_n(a)}х{_n(b)}х{_n(t)}",
+            f"{noun} {format_decimal(a)}х{format_decimal(b)}х{format_decimal(t)}",
             0.0157 * t * (a + b - 2.86 * t),
             ton,
             6,
@@ -113,7 +108,7 @@ def profile_pipe(noun: str, ton: int, sizes: list[tuple[float, float, float]], g
 def round_pipe(noun: str, ton: int, sizes: list[tuple[float, float]], gost: str, length: float = 6, label=None):
     items = []
     for d, t in sizes:
-        name = label(d, t) if label else f"{noun} {_n(d)}х{_n(t)}"
+        name = label(d, t) if label else f"{noun} {format_decimal(d)}х{format_decimal(t)}"
         items.append(
             long_item(
                 name,
@@ -133,7 +128,7 @@ def round_pipe(noun: str, ton: int, sizes: list[tuple[float, float]], gost: str,
 def angle(noun: str, ton: int, sizes: list[tuple[float, float, float]], gost: str) -> list[Item]:
     return [
         long_item(
-            f"{noun} {_n(a)}х{_n(b)}х{_n(t)}",
+            f"{noun} {format_decimal(a)}х{format_decimal(b)}х{format_decimal(t)}",
             (a + b - t) * t * STEEL,
             ton,
             11.7,
@@ -164,7 +159,7 @@ def sheets(noun: str, ton: int, rows: list[tuple[float, int, int]], gost: str, g
         price = math.ceil(ton * sheet_kg / 1000)
         items.append(
             piece(
-                f"{noun} {_n(t)} мм {w}х{length}",
+                f"{noun} {format_decimal(t)} мм {w}х{length}",
                 price,
                 {Unit.TON: ton},
                 thickness_mm=_d(t, "0.01"),
@@ -302,7 +297,9 @@ def _all_roots() -> list[Node]:
                         82000,
                         [(21.3, 2.8), (26.8, 2.8), (33.5, 3.2), (42.3, 3.2)],
                         "ГОСТ 3262-75",
-                        label=lambda d, t: f"Труба ВГП Ду{ {21.3: 15, 26.8: 20, 33.5: 25, 42.3: 32}[d] }х{_n(t)}",
+                        label=lambda d, t: (
+                            f"Труба ВГП Ду{ {21.3: 15, 26.8: 20, 33.5: 25, 42.3: 32}[d] }х{format_decimal(t)}"
+                        ),
                     ),
                 ),
                 N(
@@ -313,7 +310,7 @@ def _all_roots() -> list[Node]:
                         99000,
                         [(26.8, 2.8), (33.5, 3.2)],
                         "ГОСТ 3262-75",
-                        label=lambda d, t: f"Труба ВГП оцинкованная Ду{ {26.8: 20, 33.5: 25}[d] }х{_n(t)}",
+                        label=lambda d, t: f"Труба ВГП оцинкованная Ду{ {26.8: 20, 33.5: 25}[d] }х{format_decimal(t)}",
                     ),
                 ),
                 N(
@@ -460,7 +457,7 @@ def _all_roots() -> list[Node]:
                     "Швеллер гнутый",
                     [
                         long_item(
-                            f"Швеллер гнутый {h}х{b}х{_n(t)}",
+                            f"Швеллер гнутый {h}х{b}х{format_decimal(t)}",
                             (h + 2 * b - 2 * t) * t * STEEL,
                             80000,
                             6,
@@ -647,7 +644,7 @@ def _all_roots() -> list[Node]:
                     "Профнастил окрашенный",
                     [
                         piece(
-                            f"Профнастил {mark} RAL {ral} {_n(t)} мм, лист 2 м",
+                            f"Профнастил {mark} RAL {ral} {format_decimal(t)} мм, лист 2 м",
                             m2 * 2.3,
                             {Unit.SQUARE_METER: m2},
                             thickness_mm=_d(t, "0.01"),
@@ -667,7 +664,7 @@ def _all_roots() -> list[Node]:
                     "Профнастил оцинкованный",
                     [
                         piece(
-                            f"Профнастил {mark} оцинкованный {_n(t)} мм, лист 2 м",
+                            f"Профнастил {mark} оцинкованный {format_decimal(t)} мм, лист 2 м",
                             m2 * 2.3,
                             {Unit.SQUARE_METER: m2},
                             thickness_mm=_d(t, "0.01"),
@@ -861,7 +858,7 @@ def _all_roots() -> list[Node]:
             "Винтовые сваи",
             [
                 piece(
-                    f"Свая винтовая {d}х{_n(t)}, {length} мм",
+                    f"Свая винтовая {d}х{format_decimal(t)}, {length} мм",
                     price,
                     diameter_mm=D(d),
                     thickness_mm=_d(t, "0.01"),

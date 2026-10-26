@@ -25,6 +25,7 @@ from app.catalog.repository import PRODUCT_CARD
 from app.catalog.utils import slugify
 from app.core.config import settings
 from app.core.db import SessionLocal, engine
+from app.core.numbers import format_decimal
 from app.core.templating import format_rub
 from app.seo.meta import PRICE_TOKEN
 
@@ -46,15 +47,8 @@ class Report:
 # --- Форматирование ---------------------------------------------------------------------------------
 
 
-def num(value: Decimal | float | int) -> str:
-    """12.00 → «12», 6.50 → «6,5», 0.8880 → «0,888»."""
-    d = Decimal(str(value)).normalize()
-    text = format(d, "f")
-    return text.replace(".", ",")
-
-
 def _slug_num(value: Decimal) -> str:
-    return num(value).replace(",", "-")
+    return format_decimal(value).replace(",", "-")
 
 
 def _json_num(value: Decimal) -> int | float:
@@ -65,8 +59,8 @@ def _json_num(value: Decimal) -> int | float:
 def size_label(rule: LandingRule, values: tuple[Decimal, ...]) -> str:
     """(12,) → «12 мм», (40, 20) → «40х20»."""
     if len(values) == 1:
-        return f"{num(values[0])} мм"
-    return "х".join(num(v) for v in values)
+        return f"{format_decimal(values[0])} мм"
+    return "х".join(format_decimal(v) for v in values)
 
 
 def size_slug(rule: LandingRule, values: tuple[Decimal, ...]) -> str:
@@ -80,7 +74,7 @@ def normalize_filters(filters: dict[str, Any]) -> dict[str, str]:
     out = {}
     for key, value in (filters or {}).items():
         try:
-            out[key] = num(value)
+            out[key] = format_decimal(value)
         except Exception:  # noqa: BLE001 — строковые фильтры (марка стали, ГОСТ)
             out[key] = str(value)
     return out
@@ -145,9 +139,9 @@ def build_texts(
     if grades:
         facts.append(_join(grades))
     if thicknesses:
-        facts.append("стенка " + _join([f"{num(t)} мм" for t in thicknesses]))
+        facts.append("стенка " + _join([f"{format_decimal(t)} мм" for t in thicknesses]))
     if lengths:
-        facts.append("длина " + _join([f"{num(v)} м" for v in lengths]))
+        facts.append("длина " + _join([f"{format_decimal(v)} м" for v in lengths]))
     description = (
         f"{shown} {PRICE_TOKEN}: {n} {_plural(n, 'позиция', 'позиции', 'позиций')} {availability}"
         + (f" ({'; '.join(facts)})" if facts else "")
@@ -158,17 +152,17 @@ def build_texts(
     if grades:
         rows.append(("Марка стали", _join(grades)))
     if thicknesses:
-        rows.append(("Толщина стенки", _join([f"{num(t)} мм" for t in thicknesses])))
+        rows.append(("Толщина стенки", _join([f"{format_decimal(t)} мм" for t in thicknesses])))
     if gosts:
         rows.append(("Стандарт", _join(gosts)))
     if lengths:
-        rows.append(("Длина", _join([f"{num(v)} м" for v in lengths])))
+        rows.append(("Длина", _join([f"{format_decimal(v)} м" for v in lengths])))
     if weights:
         if len(weights) == 1:
             per_ton = round(1000 / float(weights[0]))
-            rows.append(("Вес 1 метра", f"{num(weights[0])} кг — в тонне около {per_ton} м"))
+            rows.append(("Вес 1 метра", f"{format_decimal(weights[0])} кг — в тонне около {per_ton} м"))
         else:
-            rows.append(("Вес 1 метра", f"от {num(weights[0])} до {num(weights[-1])} кг"))
+            rows.append(("Вес 1 метра", f"от {format_decimal(weights[0])} до {format_decimal(weights[-1])} кг"))
 
     parts = [f"<h2>{escape(name)}: характеристики</h2>"]
     if rows:
@@ -177,7 +171,11 @@ def build_texts(
     if rule.usage:
         parts.append(f"<p>{escape(rule.usage)}</p>")
     has_ton = any(p.price_for(Unit.TON) for p in products)
-    ton = f" При заказе от {num(Decimal(s.ton_price_from_kg) / 1000)} т действует цена за тонну." if has_ton else ""
+    ton = (
+        f" При заказе от {format_decimal(Decimal(s.ton_price_from_kg) / 1000)} т действует цена за тонну."
+        if has_ton
+        else ""
+    )
     parts.append(
         f"<p>Продаём {escape(rule.piece)}, без минимальной партии.{escape(ton)} "
         f"Режем в размер — {escape(format_rub(s.cut_price_kop))} за рез, обрезки отдаём вместе с заказом. "
@@ -201,10 +199,12 @@ def product_seo_text(product: Product) -> str:
     if product.weight_per_m_kg:
         w = Decimal(str(product.weight_per_m_kg))
         per_ton = round(1000 / float(w))
-        sentences.append(f"Вес 1 метра — {num(w)} кг, в тонне около {per_ton} м.")
+        sentences.append(f"Вес 1 метра — {format_decimal(w)} кг, в тонне около {per_ton} м.")
         if product.length_m:
             piece_kg = (w * Decimal(str(product.length_m))).quantize(Decimal("0.01"))
-            sentences.append(f"Одна штука длиной {num(product.length_m)} м весит {num(piece_kg)} кг.")
+            sentences.append(
+                f"Одна штука длиной {format_decimal(product.length_m)} м весит {format_decimal(piece_kg)} кг."
+            )
     facts = [
         x
         for x in (
@@ -219,7 +219,7 @@ def product_seo_text(product: Product) -> str:
     meter = product.price_for(Unit.METER)
     if meter and product.length_m:
         piece_kop = round(meter.amount_kop * float(product.length_m))
-        sentences.append(f"Цена за штуку {num(product.length_m)} м — {format_rub(piece_kop)}.")
+        sentences.append(f"Цена за штуку {format_decimal(product.length_m)} м — {format_rub(piece_kop)}.")
     parts = [f"<h2>{escape(shown)}</h2>"]
     if sentences:
         parts.append(f"<p>{escape(' '.join(sentences))}</p>")

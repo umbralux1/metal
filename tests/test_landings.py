@@ -5,7 +5,7 @@ from decimal import Decimal
 from sqlalchemy import select
 
 from app.catalog.landing_rules import LandingRule
-from app.catalog.landings import build_texts, generate_landings, num, size_slug
+from app.catalog.landings import build_texts, generate_landings, size_slug
 from app.catalog.models import FilterLanding, Product
 from app.core.db import SessionLocal
 from app.seo.meta import with_price
@@ -19,8 +19,7 @@ async def _landing(path: str) -> FilterLanding | None:
         return await session.scalar(select(FilterLanding).where(FilterLanding.path == path))
 
 
-def test_number_and_slug_format():
-    assert num(Decimal("12.00")) == "12" and num(Decimal("6.50")) == "6,5" and num(Decimal("0.8880")) == "0,888"
+def test_size_slug_format():
     rule = LandingRule("x", ("width_mm", "height_mm"), "Труба", "от одной трубы")
     assert size_slug(rule, (Decimal("40"), Decimal("20"))) == "40x20"
     assert size_slug(rule, (Decimal("6.5"),)) == "6-5-mm"

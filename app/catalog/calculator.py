@@ -5,9 +5,10 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal
 
 from app.catalog.models import Product, Unit
+from app.core.numbers import format_decimal, parse_decimal
 
 MAX_QUANTITY = Decimal(100_000)
 MAX_CUTS = 10_000
@@ -72,20 +73,11 @@ def _ceil_div(a: Decimal, b: Decimal) -> int:
     return int(q) if q == int(q) else int(q) + 1
 
 
-def _num(value: Decimal) -> str:
-    return f"{value.normalize():f}".replace(".", ",")
-
-
 def _parse_decimal(raw: str | None, field_name: str) -> Decimal | None:
-    if raw is None or raw.strip() == "":
-        return None
     try:
-        value = Decimal(raw.strip().replace(",", ".").replace(" ", ""))
-    except InvalidOperation as exc:
-        raise CalcError(f"{field_name}: введите число") from exc
-    if not value.is_finite():
-        raise CalcError(f"{field_name}: введите число")
-    return value
+        return parse_decimal(raw)
+    except ValueError:
+        raise CalcError(f"{field_name}: введите число") from None
 
 
 def parse_input(params: Mapping[str, str], product: Product) -> CalcInput:
@@ -177,7 +169,7 @@ def _plain(product: Product, inp: CalcInput, notes: list[str]) -> tuple[Decimal 
     pieces = _ceil_div(meters, bar)
     rounded = pieces * bar
     if rounded != meters:
-        notes.append(f"Округлили до целых: {pieces} шт. по {_num(bar)} м. Нужно точнее — включите резку")
+        notes.append(f"Округлили до целых: {pieces} шт. по {format_decimal(bar)} м. Нужно точнее — включите резку")
     return rounded, pieces
 
 
@@ -189,7 +181,7 @@ def _cutting(product: Product, inp: CalcInput, notes: list[str]) -> tuple[Decima
     if length is None or length <= 0:
         raise CalcError("Укажите длину отрезка")
     if length > bar:
-        raise CalcError(f"Отрезок длиннее прутка ({_num(bar)} м)")
+        raise CalcError(f"Отрезок длиннее прутка ({format_decimal(bar)} м)")
     if not count or count < 1:
         raise CalcError("Укажите количество отрезков")
     if count > MAX_CUTS:
@@ -203,9 +195,9 @@ def _cutting(product: Product, inp: CalcInput, notes: list[str]) -> tuple[Decima
     cuts = full * (per_bar - (1 if exact else 0)) + rest
     meters = pieces * bar
     waste = meters - count * length
-    notes.append(f"{count} отр. по {_num(length)} м из {pieces} шт. по {_num(bar)} м")
+    notes.append(f"{count} отр. по {format_decimal(length)} м из {pieces} шт. по {format_decimal(bar)} м")
     if waste > 0:
-        notes.append(f"Обрезки {_num(waste)} м отдаём вместе с заказом, в цену входит весь пруток")
+        notes.append(f"Обрезки {format_decimal(waste)} м отдаём вместе с заказом, в цену входит весь пруток")
     return meters, pieces, cuts, waste
 
 

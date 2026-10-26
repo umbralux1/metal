@@ -18,6 +18,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base, TimestampMixin
+from app.core.numbers import format_decimal
 
 
 class Unit(enum.StrEnum):
@@ -141,16 +142,13 @@ class Product(TimestampMixin, SeoMixin, Base):
 
     @property
     def size_label(self) -> str:
-        def fmt(value: Decimal) -> str:
-            return f"{value.normalize():f}".replace(".", ",")
-
         if self.width_mm and self.height_mm:
             parts = [self.width_mm, self.height_mm] + ([self.thickness_mm] if self.thickness_mm else [])
-            return "×".join(fmt(v) for v in parts)
+            return "×".join(format_decimal(v) for v in parts)
         if self.diameter_mm:
-            return f"Ø{fmt(self.diameter_mm)} мм"
+            return f"Ø{format_decimal(self.diameter_mm)} мм"
         if self.thickness_mm:
-            return f"{fmt(self.thickness_mm)} мм"
+            return f"{format_decimal(self.thickness_mm)} мм"
         return ""
 
 

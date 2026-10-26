@@ -1,10 +1,11 @@
 """Форма оформления заказа: проверка на входе (Pydantic), дальше — проверенные данные."""
 
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Any, Literal
 
 from pydantic import BaseModel, model_validator
 
+from app.core.numbers import parse_decimal
 from app.delivery.selection import VehicleQuote
 from app.leads.inn import is_valid_inn
 from app.leads.phone import normalize_phone
@@ -21,15 +22,12 @@ class CheckoutError(ValueError):
 
 def parse_distance_km(raw: str) -> Decimal | None:
     """«18», «18,5» → Decimal. Пусто — None. Не число или отрицательное — CheckoutError."""
-    text = raw.strip().replace(",", ".").replace(" ", "")
-    if not text:
-        return None
     try:
-        value = Decimal(text)
-    except InvalidOperation:
+        value = parse_decimal(raw)
+    except ValueError:
         raise CheckoutError("Расстояние: введите число, например 18") from None
-    if not value.is_finite():
-        raise CheckoutError("Расстояние: введите число, например 18")
+    if value is None:
+        return None
     if value < 0:
         raise CheckoutError("Расстояние не может быть отрицательным")
     if value > MAX_DISTANCE_INPUT_KM:

@@ -22,6 +22,7 @@ from app.catalog.seo import category_meta, item_list_jsonld, landing_meta, piece
 from app.catalog.utils import fix_layout
 from app.core.config import settings
 from app.core.db import get_session
+from app.core.numbers import format_decimal
 from app.core.templating import templates
 from app.seo import jsonld
 from app.seo.meta import PageMeta, absolute, city_prep, robots_for
@@ -174,8 +175,7 @@ def _calc_context(product: Product, params) -> dict:
 
 
 def _params_from(inp) -> dict:
-    qty = f"{inp.quantity.normalize():f}".replace(".", ",") if inp.quantity is not None else ""
-    return {"unit": inp.unit, "qty": qty}
+    return {"unit": inp.unit, "qty": format_decimal(inp.quantity)}
 
 
 @router.get("/api/calc/{product_id}/", response_class=HTMLResponse, include_in_schema=False)

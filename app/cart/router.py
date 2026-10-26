@@ -23,6 +23,7 @@ from app.catalog.calculator import CalcError, CalcResult
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.maps import yandex_map
+from app.core.numbers import format_decimal
 from app.core.templating import format_rub, templates
 from app.seo.meta import PageMeta, absolute
 
@@ -60,7 +61,7 @@ def _summary(result: CalcResult) -> str:
     if result.pieces:
         parts.append(f"{result.pieces} шт.")
     if result.meters:
-        parts.append(f"{result.meters.normalize():f}".replace(".", ",") + " м")
+        parts.append(f"{format_decimal(result.meters)} м")
     return " · ".join(parts)
 
 

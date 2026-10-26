@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 from fastapi.templating import Jinja2Templates
 
 from app.core.config import settings
+from app.core.numbers import format_decimal
 from app.core.static import static_url
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
@@ -29,15 +30,6 @@ def format_local_time(moment: datetime | None) -> str:
 def site_year(moment: datetime) -> int:
     """Год в часовом поясе сайта (TIMEZONE): в новогоднюю ночь по UTC ещё старый год, а по Москве уже новый."""
     return moment.astimezone(ZoneInfo(settings.timezone)).year
-
-
-def format_decimal(value) -> str:
-    """Decimal, int или float → «11,7», «1», «0,888»."""
-    if value is None:
-        return ""
-    from decimal import Decimal
-
-    return f"{Decimal(str(value)).normalize():f}".replace(".", ",")
 
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))

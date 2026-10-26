@@ -11,6 +11,7 @@ from starlette.requests import Request
 from app.catalog.landing_rules import display_name
 from app.catalog.models import Category, FilterLanding, Product, Unit
 from app.core.config import settings
+from app.core.numbers import format_decimal
 from app.core.templating import format_rub
 from app.seo.meta import PageMeta, absolute, city_dat, city_prep, robots_for, with_price
 
@@ -76,7 +77,7 @@ def product_meta(request: Request, product: Product) -> PageMeta:
         offers.append(f"{format_rub(pr.amount_kop)}/{pr.unit.label}")
     piece = piece_price_kop(product)
     if piece:
-        offers.append(f"{num_ru(product.length_m)} м — {format_rub(piece)}")
+        offers.append(f"{format_decimal(product.length_m)} м — {format_rub(piece)}")
     stock = "В наличии на складе" if product.in_stock else "Под заказ"
     description = (
         f"{shown}: {', '.join(offers)}. {stock}. " if offers else f"{shown}. {stock}. "
@@ -88,13 +89,6 @@ def product_meta(request: Request, product: Product) -> PageMeta:
         canonical=absolute(product.url),
         robots=robots_for(request),
     )
-
-
-def num_ru(value) -> str:
-    """6.000 → «6», 11.700 → «11,7»."""
-    from decimal import Decimal
-
-    return format(Decimal(str(value)).normalize(), "f").replace(".", ",")
 
 
 def item_list_jsonld(products: list[Product]) -> dict[str, Any]:

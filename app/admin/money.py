@@ -1,7 +1,9 @@
 """Деньги в формах админки: рубли в поле, копейки в базе."""
 
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Any
+
+from app.core.numbers import parse_decimal
 
 
 def rub_to_kop(raw: Any, allow_zero: bool = False) -> int | None:
@@ -9,13 +11,12 @@ def rub_to_kop(raw: Any, allow_zero: bool = False) -> int | None:
 
     allow_zero — для тарифов доставки: 0 ₽ за км значит «без доплаты».
     """
-    text = str(raw or "").replace("\u00a0", "").replace(" ", "").replace("₽", "").replace(",", ".").strip()
-    if not text:
-        return None
     try:
-        value = Decimal(text)
-    except InvalidOperation:
+        value = parse_decimal(str(raw or "").replace("₽", ""))  # знак рубля — только в ценах
+    except ValueError:
         raise ValueError(f"Цена «{raw}»: введите число, например 43,25") from None
+    if value is None:
+        return None
     if allow_zero and value.is_finite() and value < 0:
         raise ValueError(f"Цена «{raw}»: не может быть отрицательной")
     if not value.is_finite() or value < 0 or (value == 0 and not allow_zero):

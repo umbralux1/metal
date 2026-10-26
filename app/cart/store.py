@@ -13,6 +13,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app.core.config import settings
+from app.core.numbers import format_decimal, parse_decimal
 
 COOKIE = "cart"
 MAX_ITEMS = 30  # cookie ограничена ~4 КБ
@@ -89,16 +90,14 @@ def save(response: Response, request: Request, items: list[CartItem]) -> None:
 
 def add(items: list[CartItem], item: CartItem) -> list[CartItem]:
     """Та же позиция без резки — количество складывается; с резкой или в другой единице — новая строка."""
-    from decimal import Decimal, InvalidOperation
-
     for existing in items:
         if existing.same_as(item) and not item.cut:
             try:
-                total = Decimal(existing.qty.replace(",", ".") or 0) + Decimal(item.qty.replace(",", ".") or 0)
-                existing.qty = f"{total.normalize():f}".replace(".", ",")
-                return items
-            except InvalidOperation:
+                total = (parse_decimal(existing.qty) or 0) + (parse_decimal(item.qty) or 0)
+            except ValueError:
                 break
+            existing.qty = format_decimal(total)
+            return items
     if len(items) >= MAX_ITEMS:
         raise ValueError(f"В корзине уже {MAX_ITEMS} позиций — оформите заказ или позвоните нам")
     return [*items, item]
