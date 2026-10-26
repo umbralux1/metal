@@ -7,7 +7,7 @@ COMPOSE := docker compose
 
 .DEFAULT_GOAL := help
 .PHONY: help setup venv install browsers env db db-stop db-logs db-shell db-reset migrate migration seed landings \
-        run test lint types imports audit format check snapshot snapshot-diff deploy clean
+        run test lint types imports audit format check snapshot snapshot-diff dups deploy clean
 
 help: ## Список команд
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "} {printf "  \033[1m%-12s\033[0m %s\n", $$1, $$2}'
@@ -94,6 +94,11 @@ snapshot: db ## Снимок сайта, корзины и админки до �
 
 snapshot-diff: db ## Снимок после изменений и сравнение с make snapshot: какие ответы поменялись
 	$(PY) -m scripts.snapshot diff
+
+dups: ## Похожий код (semdup, нужен Rust): отчёт в semdup-085.txt — кандидаты, разбирать глазами
+	@command -v semdup >/dev/null || (echo "Нужен semdup: cargo install semdup --locked (см. docs/tech-debt.md)"; exit 1)
+	semdup scan -t 0.85 --show-bodies > semdup-085.txt
+	@echo "Отчёт: semdup-085.txt ($$(grep -c '^## cluster' semdup-085.txt) кластеров)"
 
 # ---------- Выкладка ----------
 

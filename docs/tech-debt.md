@@ -29,14 +29,32 @@
 ## Архитектура
 
 **Числа форматируются и разбираются в каждом модуле заново (найдено 26.10.2026).** Число → «11,7»
-(`f"{value.normalize():f}".replace(".", ",")`) написано 9 раз: `core/templating.format_decimal`, `catalog/landings.num`,
-`catalog/seo.num_ru`, `catalog/drawings`, `catalog/calculator._num`, `Product.size_label`, `catalog/router._params_from`,
-`cart/router._summary`, `cart/store.add`. Строка «11,7» → число — 5 раз, и копии уже разошлись:
+(`f"{value.normalize():f}".replace(".", ",")`) написано 10 раз: `core/templating.format_decimal`, `catalog/landings.num`,
+`catalog/seo.num_ru`, `catalog/drawings._n`, `catalog/demo_catalog._n`, `catalog/calculator._num`, `Product.size_label`,
+`catalog/router._params_from`, `cart/router._summary`, `cart/store.add`. Строка «11,7» → число — 5 раз, и копии уже разошлись:
 `calculator._parse_decimal` и `checkout.parse_distance_km` убирают пробелы, `admin/money.rub_to_kop` — ещё и неразрывный
 пробел и «₽», а `admin/delivery.parse_length_m` и `cart/store.add` пробелы не убирают («1 000» в цене — можно,
 в длине груза — ошибка). Решение: одна функция форматирования и одна разбора в `core` (запятая, пробелы, неразрывный
 пробел); проверки диапазонов остаются у полей. Защита от возврата — тест-правило, как для `static_url`: вне `core`
 нет `.replace(".", ",")` и разбора чисел своими силами. Проверка — `make snapshot` / `make snapshot-diff`.
+
+**Почти одинаковый код, найденный semdup (27.10.2026).** Поиск семантических дублей (`semdup scan`, см. ниже):
+- `catalog/router._render_category` и `_render_landing` — похожесть 0,93: список товаров, проверка номера страницы,
+  минимальная цена, крошки, разметка. Свести в одну функцию, разница — заголовок, соседние ссылки и фильтры.
+- Адреса в админке: `on_model_change` разделов, товаров и посадочных (`admin/catalog.py`) по-разному повторяют
+  «адрес из родителя и slug → проверить, что не занят → запомнить старый», `after_model_change` — «поставить 301».
+  Самый рискованный код (адреса и редиректы) — свести в общие функции в `catalog/paths.py`. Проверять снимками.
+- Цены в рублях в формах админки: `scaffold_form` и `get_form_data_for_edit` в `admin/catalog.py` (товары)
+  и `admin/delivery.py` (машины) — одно и то же дважды.
+- `repository.top_categories` и `child_categories` — один запрос, разница только в условии на родителя (0,98).
+- `cart/router.cart_update` и `cart_remove` — почти одинаковые обработчики (0,91).
+
+**Поиск семантических дублей — semdup** (https://github.com/niklebedenko/semdup). Не проверка, а поиск кандидатов:
+при пороге 0,85 видит копии форматирования чисел, но не разбора; при 0,72 — оба, но среди 50 кластеров с шумом
+(иконки, демо-данные, шаблонный код). Копии внутри выражений не видит. Запуск — в терминале на Mac (нужен Rust:
+`cargo install semdup --locked`), настройки в `semdup.toml`, кэш `semdup.sqlite` и отчёты `semdup-*.txt` в git
+не попадают. Запуск — `make dups` (`semdup scan -t 0.85 --show-bodies`, отчёт в `semdup-085.txt`). Перед большим рефакторингом или раз
+в несколько недель; отчёт разбирать вручную. Ложные пары: `kop_to_rub` и `format_rub` — намеренно разные форматы.
 
 **Большие файлы.** `app/catalog/demo_catalog.py` (1054 строки) — это данные, не код, разбивать не нужно.
 

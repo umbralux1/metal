@@ -1,0 +1,16 @@
+# semdup configuration — https://github.com/niklebedenko/semdup
+# CLI flags override anything here; `semdup <cmd> --help` lists them.
+
+[extract]
+roots = ["app"]
+respect_gitignore = true
+# granularity = ["function"] # uncomment for function-only indexing
+min_block_lines = 2
+
+[scan]
+# Cosine similarity cutoff. Per repo and per model: dial it in by
+# running `semdup scan --threshold <t>` at a few values.
+threshold = 0.72
+min_lines = 2
+skip_tests = true
+# index = "exact" # exact | sparse | auto; sparse is approximate

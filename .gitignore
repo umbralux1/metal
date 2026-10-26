@@ -6,6 +6,8 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .snapshots/
+semdup.sqlite
+semdup-*.txt
 .idea/
 .DS_Store
 .env.render
