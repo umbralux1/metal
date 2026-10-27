@@ -17,6 +17,7 @@ from app.core.numbers import format_decimal, parse_decimal
 
 COOKIE = "cart"
 MAX_ITEMS = 30  # cookie ограничена ~4 КБ
+FULL_MESSAGE = f"В корзине уже {MAX_ITEMS} позиций — оформите заказ или позвоните нам"
 MAX_AGE = 30 * 24 * 3600
 PARAM_KEYS = ("unit", "qty", "cut", "cut_len", "cut_count")
 
@@ -38,12 +39,12 @@ class CartItem:
         return {k: v for k, v in data.items() if v}
 
     def same_as(self, other: "CartItem") -> bool:
-        """Та же позиция: тот же товар и та же резка — количество при добавлении складывается."""
-        return (self.product_id, self.unit, self.cut, self.cut_len) == (
+        """Та же позиция: тот же товар, единица и резка (длина отрезка «3,9» и «3.9» — одна и та же)."""
+        return (self.product_id, self.unit, self.cut, _number(self.cut_len)) == (
             other.product_id,
             other.unit,
             other.cut,
-            other.cut_len,
+            _number(other.cut_len),
         )
 
     @classmethod
@@ -56,6 +57,14 @@ class CartItem:
             cut_len=str(form.get("cut_len") or "").strip()[:12],
             cut_count=str(form.get("cut_count") or "").strip()[:6],
         )
+
+
+def _number(raw: str) -> object:
+    """Число для сравнения; не число — как есть (такие позиции склеиваются, только если строки совпадают)."""
+    try:
+        return parse_decimal(raw)
+    except ValueError:
+        return raw
 
 
 def _serializer() -> URLSafeSerializer:
@@ -89,18 +98,30 @@ def save(response: Response, request: Request, items: list[CartItem]) -> None:
 
 
 def add(items: list[CartItem], item: CartItem) -> list[CartItem]:
-    """Та же позиция без резки — количество складывается; с резкой или в другой единице — новая строка."""
+    """Та же позиция складывается: без резки — количество, с той же резкой — число отрезков. Иначе — новая строка.
+
+    Склеенную позицию проверяет вызывающий (`merged_with`): сумма может не считаться (больше допустимого).
+    """
     for existing in items:
-        if existing.same_as(item) and not item.cut:
+        if existing.same_as(item):
             try:
-                total = (parse_decimal(existing.qty) or 0) + (parse_decimal(item.qty) or 0)
+                if item.cut:
+                    existing.cut_count = format_decimal(
+                        (parse_decimal(existing.cut_count) or 0) + (parse_decimal(item.cut_count) or 0)
+                    )
+                else:
+                    existing.qty = format_decimal((parse_decimal(existing.qty) or 0) + (parse_decimal(item.qty) or 0))
             except ValueError:
                 break
-            existing.qty = format_decimal(total)
             return items
     if len(items) >= MAX_ITEMS:
-        raise ValueError(f"В корзине уже {MAX_ITEMS} позиций — оформите заказ или позвоните нам")
+        raise ValueError(FULL_MESSAGE)
     return [*items, item]
+
+
+def merged_with(items: list[CartItem], item: CartItem) -> CartItem:
+    """Позиция корзины, в которую легла `item` после `add`: склеенная или сама `item`."""
+    return next((existing for existing in items if existing.same_as(item)), item)
 
 
 def count(request: Request) -> int:

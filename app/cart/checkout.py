@@ -129,10 +129,12 @@ def order_snapshot(
     }
     if form.delivery == "delivery":
         distance = form.distance()
+        distance_km = f"{distance.normalize():f}" if distance is not None else None
+        calc["distance_km"] = distance_km  # и без машины: менеджер подбирает рейсы на это расстояние
         calc["vehicle"] = quote and {
             "id": quote.vehicle.id,
             "name": quote.vehicle.name,
-            "distance_km": f"{distance.normalize():f}" if distance is not None else None,
+            "distance_km": distance_km,
             "price_kop": quote.price_kop,
         }
         calc["delivery_kop"] = quote.price_kop if quote else None

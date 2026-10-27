@@ -1,6 +1,7 @@
 """Корзина и оформление заказа. Страницы корзины не индексируются (robots.txt + X-Robots-Tag)."""
 
 from typing import Any
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
@@ -31,6 +32,11 @@ from app.seo.meta import PageMeta, absolute
 
 router = APIRouter()
 NOINDEX = {"X-Robots-Tag": "noindex, nofollow"}
+# Без JavaScript ошибка добавления показывается в корзине по коду в адресе — текст только отсюда, не из адреса
+ADD_ERRORS = {
+    "full": f"Позицию не добавили. {store.FULL_MESSAGE}",
+    "too_much": "Позицию не добавили: вместе с тем, что уже в корзине, получается слишком много — позвоните, посчитаем опт",
+}
 
 
 def _cart_context(lines: list[Line], options: DeliveryOptions, values: dict[str, str]) -> dict[str, Any]:
@@ -80,15 +86,20 @@ async def cart_add(request: Request, session: AsyncSession = Depends(get_session
         product_id = 0
     product = await get_product(session, product_id)
     item = CartItem.from_form(product_id, form)
+    if product is None or not product.is_active:
+        return _add_error(request, "Товар не найден, обновите страницу", "/cart/")
     try:
-        if product is None or not product.is_active:
-            raise ValueError("Товар не найден, обновите страницу")
         result = price_cart_item(product, item)  # не кладём в корзину то, что не считается
+    except CalcError as exc:  # без JavaScript карточка с введёнными данными сама покажет ошибку калькулятора
+        return _add_error(request, str(exc), f"{product.url}?{urlencode(item.params())}#calc")
+    try:
         items = store.add(store.load(request), item)
-    except (CalcError, ValueError) as exc:
-        if _is_fetch(request):
-            return JSONResponse({"ok": False, "error": str(exc)}, status_code=422, headers=NOINDEX)
-        return RedirectResponse(f"{product.url}#calc" if product else "/cart/", status_code=303)
+    except ValueError as exc:
+        return _add_error(request, str(exc), "/cart/?error=full")
+    try:
+        price_cart_item(product, store.merged_with(items, item))  # склеенная позиция тоже должна считаться
+    except CalcError as exc:
+        return _add_error(request, str(exc), "/cart/?error=too_much")
 
     response: Response
     if _is_fetch(request):
@@ -107,24 +118,39 @@ async def cart_add(request: Request, session: AsyncSession = Depends(get_session
     return response
 
 
+def _add_error(request: Request, message: str, fallback: str) -> Response:
+    """Ошибка добавления: с JavaScript — текст для уведомления, без — переход туда, где её видно."""
+    if _is_fetch(request):
+        return JSONResponse({"ok": False, "error": message}, status_code=422, headers=NOINDEX)
+    return RedirectResponse(fallback, status_code=303)
+
+
 @router.get("/cart/", response_class=HTMLResponse, include_in_schema=False)
 async def cart_page(request: Request, session: AsyncSession = Depends(get_session)) -> Response:
     lines = await list_cart_lines(session, store.load(request))
     distance = str(request.query_params.get("distance_km", ""))[:20]
     options = await quote_cart_delivery(session, lines, distance)
     values = CheckoutForm(distance_km=distance).model_dump()
-    return templates.TemplateResponse(request, "cart/page.html", _cart_context(lines, options, values), headers=NOINDEX)
+    context = {**_cart_context(lines, options, values), "notice": ADD_ERRORS.get(request.query_params.get("error", ""))}
+    return templates.TemplateResponse(request, "cart/page.html", context, headers=NOINDEX)
+
+
+def _index(raw: object, items: list[CartItem]) -> int | None:
+    """Номер позиции из формы; нет такой позиции (в том числе «-1») — None, корзина не меняется."""
+    try:
+        index = int(str(raw))
+    except ValueError:
+        return None
+    return index if 0 <= index < len(items) else None
 
 
 @router.post("/cart/update/", include_in_schema=False)
 async def cart_update(request: Request) -> Response:
     form = await request.form()
     items = store.load(request)
-    try:
-        index = int(str(form.get("index")))
+    index = _index(form.get("index"), items)
+    if index is not None:
         items[index].qty = str(form.get("qty") or "").strip()[:12]
-    except (ValueError, IndexError):
-        pass
     response = RedirectResponse("/cart/", status_code=303)
     store.save(response, request, items)
     return response
@@ -134,10 +160,9 @@ async def cart_update(request: Request) -> Response:
 async def cart_remove(request: Request) -> Response:
     form = await request.form()
     items = store.load(request)
-    try:
-        items.pop(int(str(form.get("index"))))
-    except (ValueError, IndexError):
-        pass
+    index = _index(form.get("index"), items)
+    if index is not None:
+        items.pop(index)
     response = RedirectResponse("/cart/", status_code=303)
     store.save(response, request, items)
     return response

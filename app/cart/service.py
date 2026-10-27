@@ -39,11 +39,19 @@ class CartLineView:
     product: ProductLink | None
     calc: CalcResult | None
     error: str | None
+    available: bool  # товар продаётся: можно менять количество
 
 
 def cart_line_views(lines: list[Line]) -> list[CartLineView]:
     return [
-        CartLineView(line.index, line.item, product_link(line.product) if line.product else None, line.calc, line.error)
+        CartLineView(
+            line.index,
+            line.item,
+            product_link(line.product) if line.product else None,
+            line.calc,
+            line.error,
+            available=line.product is not None and line.product.is_active,
+        )
         for line in lines
     ]
 

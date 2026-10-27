@@ -71,7 +71,8 @@ def _lead_delivery_text(calc: dict, delivery: str) -> str:
         return delivery
     vehicle = calc.get("vehicle")
     if not vehicle:
-        return f"{delivery} · машину и рейсы подобрать менеджеру"
+        km = f"{calc['distance_km']} км — " if calc.get("distance_km") else ""
+        return f"{delivery} · {km}машину и рейсы подобрать менеджеру"
     price = format_rub(vehicle["price_kop"]) if vehicle.get("price_kop") is not None else "стоимость уточнит менеджер"
     return f"{delivery} · {vehicle['name']}, {vehicle['distance_km']} км — {price}"
 

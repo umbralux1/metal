@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>{{ meta.h1 }}</h1>
+<h1>{{ meta.h1 }}</h1>{% if notice %}
+<p class="calc-error" role="alert">{{ notice }}</p>{% endif %}
 {% if not lines %}
 <div class="empty cart-empty">
   <p>В корзине пока ничего нет.</p>
@@ -27,7 +28,7 @@
         {% if line.error %}<p class="calc-error" role="alert">{{ line.error }}</p>{% endif %}
       </div>
       <div class="cart-line-qty">
-        {% if line.product and not line.item.cut %}
+        {% if line.available and not line.item.cut %}
         <form method="post" action="/cart/update/" class="cart-qty-form">
           <input type="hidden" name="index" value="{{ line.index }}">
           <label class="visually-hidden" for="qty-{{ line.index }}">Количество, {{ 'шт.' if line.item.unit == 'pcs' else ('кг' if line.item.unit == 'kg' else 'м') }}</label>
