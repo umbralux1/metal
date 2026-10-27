@@ -7,7 +7,7 @@ COMPOSE := docker compose
 
 .DEFAULT_GOAL := help
 .PHONY: help setup venv install browsers env db db-stop db-logs db-shell db-reset migrate migration seed landings \
-        run test lint types imports audit format check snapshot snapshot-diff dups deploy clean
+        run test lint types imports audit format check snapshot snapshot-diff dups mutants deploy clean
 
 help: ## Список команд
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "} {printf "  \033[1m%-12s\033[0m %s\n", $$1, $$2}'
@@ -99,6 +99,12 @@ dups: ## Похожий код (semdup, нужен Rust): отчёт в semdup-0
 	@command -v semdup >/dev/null || (echo "Нужен semdup: cargo install semdup --locked (см. docs/tech-debt.md)"; exit 1)
 	semdup scan -t 0.85 --show-bodies > semdup-085.txt
 	@echo "Отчёт: semdup-085.txt ($$(grep -c '^## cluster' semdup-085.txt) кластеров)"
+
+mutants: db ## Мутационное тестирование корзины и заявок (mutmut, ~40 мин): какую порчу кода тесты не замечают
+	@test -x $(VENV)/bin/mutmut || (echo "Нужен mutmut: make install"; exit 1)
+	rm -rf mutants
+	$(VENV)/bin/mutmut run --max-children 1
+	$(VENV)/bin/mutmut results
 
 # ---------- Выкладка ----------
 

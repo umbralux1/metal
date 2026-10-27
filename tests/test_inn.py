@@ -8,7 +8,7 @@ import pytest
 from app.leads.inn import is_valid_inn
 
 
-@pytest.mark.parametrize("inn", ["7707083893", "7736207543", "500100732259"])
+@pytest.mark.parametrize("inn", ["7707083893", "7736207543", "500100732259", "7707000030"])  # последний: остаток 10 → 0
 def test_valid(inn):
     assert is_valid_inn(inn)
 

@@ -47,6 +47,15 @@ async def database():
     await engine.dispose()
 
 
+def pytest_collection_modifyitems(config, items):
+    """Под mutmut (make mutants) браузерные тесты не запускаются: они не проверяют код корзины и заявок напрямую."""
+    if "MUTANT_UNDER_TEST" in os.environ:
+        skip = pytest.mark.skip(reason="браузерные тесты под mutmut не запускаются")
+        for item in items:
+            if item.path.name.startswith("test_browser_"):
+                item.add_marker(skip)
+
+
 @pytest.fixture(autouse=True)
 def lead_limit_off(request, monkeypatch):
     """Тесты шлют десятки заявок с одного адреса — порог им не мешает. Настоящий порог — в test_lead_limit.py."""

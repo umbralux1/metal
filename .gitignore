@@ -8,6 +8,7 @@ __pycache__/
 .snapshots/
 semdup.sqlite
 semdup-*.txt
+mutants/
 .idea/
 .DS_Store
 .env.render

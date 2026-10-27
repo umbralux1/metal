@@ -143,3 +143,22 @@ async def test_lead_with_file_instead_of_text_is_rejected(client):
     r = await client.post("/api/lead/", data=data, files={"qty": ("qty.txt", b"3")}, headers=FETCH)
     assert r.status_code == 422
     assert await lead_count() == before
+
+
+async def test_lead_stores_the_product_it_was_sent_from(client):
+    """Заявка с карточки записывает тот товар, с которого отправлена (найдено мутационным тестированием)."""
+    pid = await product_id()
+    data = {"product_id": pid, "unit": "pcs", "qty": "1", "phone": "+7 916 123-45-67"}
+    assert (await client.post("/api/lead/", data=data, headers=FETCH)).status_code == 200
+    async with SessionLocal() as s:
+        lead = await s.scalar(select(Lead).order_by(Lead.id.desc()).limit(1))
+    assert lead.product_id == pid
+
+
+async def test_lead_with_garbage_product_id_is_not_saved(client):
+    """Мусор вместо номера товара — «товар не найден», заявка не уходит на чужой товар."""
+    before = await lead_count()
+    data = {"product_id": "abc", "unit": "pcs", "qty": "1", "phone": "+7 916 123-45-67"}
+    r = await client.post("/api/lead/", data=data, headers=FETCH)
+    assert r.status_code == 404
+    assert await lead_count() == before
