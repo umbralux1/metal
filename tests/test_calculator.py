@@ -99,3 +99,100 @@ def test_no_price():
     product = Product(name="Без цены", length_m=D(6), weight_per_m_kg=D(1), base_unit=Unit.METER, prices=[])
     with pytest.raises(CalcError, match="по запросу"):
         calc(product, unit="pcs", quantity=D(1))
+
+
+# ---------- Найдено мутационным тестированием (mutmut): этого тесты не проверяли ----------
+
+
+def ton_only(**kw) -> Product:
+    """Товар только с ценой за тонну (без цены за метр): 0,888 кг/м, 48 700 ₽/т."""
+    return Product(
+        name="Только за тонну",
+        weight_per_m_kg=D("0.888"),
+        base_unit=Unit.METER,
+        prices=[Price(unit=Unit.TON, amount_kop=4870000)],
+        **kw,
+    )
+
+
+def test_ton_only_product_is_priced_by_ton_below_one_ton():
+    """Нет цены за метр — считаем по тонне и меньше тонны: 1 пруток 10,39 кг × 48 700 ₽/т = 505,99 ₽."""
+    r = calc(ton_only(length_m=D("11.7")), unit="pcs", quantity=D(1))
+    assert r.price_unit == Unit.TON and r.price_kop == 4870000
+    assert r.material_kop == 50599  # 10,39 / 1000 × 48 700 ₽ = 505,993 → 505,99 ₽
+
+
+def test_ton_price_starts_exactly_at_one_ton(rebar):
+    """Ровно 1000 кг — уже цена за тонну."""
+    product = Product(
+        name="Полоса",
+        weight_per_m_kg=D(1),
+        base_unit=Unit.METER,
+        prices=[Price(unit=Unit.METER, amount_kop=6000), Price(unit=Unit.TON, amount_kop=5000000)],
+    )
+    r = calc(product, unit="m", quantity=D(1000))  # 1000 м × 1 кг/м = 1000 кг
+    assert r.weight_kg == D(1000) and r.price_unit == Unit.TON and r.material_kop == 5000000
+    below = calc(product, unit="m", quantity=D("999.99"))
+    assert below.price_unit == Unit.METER
+
+
+def test_product_without_weight_has_no_weight(rebar):
+    """Вес метра не указан — веса нет (и цены за тонну тоже), считаем по метрам."""
+    rebar.weight_per_m_kg = None
+    r = calc(rebar, unit="pcs", quantity=D(1))
+    assert r.weight_kg is None and r.price_unit == Unit.METER
+
+
+@pytest.mark.parametrize("unit", ["pcs", "m", "kg"])
+def test_parse_input_accepts_every_unit(rebar, unit):
+    assert parse_input({"unit": unit, "qty": "1"}, rebar).unit == unit
+
+
+@pytest.mark.parametrize("value", ["1", "on", "true"])
+def test_parse_input_cut_checkbox_values(rebar, value):
+    assert parse_input({"cut": value}, rebar).cut
+
+
+@pytest.mark.parametrize(
+    ("params", "message"),
+    [
+        ({"unit": "т"}, "Неизвестная единица"),
+        ({"qty": "много"}, "Количество: введите число"),
+        ({"cut_len": "длинный"}, "Длина отрезка: введите число"),
+        ({"cut_count": "пять"}, "Количество отрезков: введите число"),
+        ({"cut_count": "2,5"}, "Количество отрезков: целое число"),
+    ],
+)
+def test_parse_input_errors_name_the_field(rebar, params, message):
+    with pytest.raises(CalcError, match=f"^{message}$"):
+        parse_input(params, rebar)
+
+
+def test_default_input_for_each_kind_of_product(rebar):
+    """По умолчанию: пруток — его длина в метрах; товар без длины — 1 м; штучный — 1 шт."""
+    from app.catalog.calculator import default_input, default_unit
+
+    assert default_input(rebar) == CalcInput(unit="m", quantity=D("11.7"))
+    hose = Product(name="Шланг", base_unit=Unit.METER, prices=[])
+    assert default_input(hose) == CalcInput(unit="m", quantity=D(1))
+    clamp = Product(name="Хомут", base_unit=Unit.PIECE, length_m=D("0.3"), prices=[])
+    assert default_unit(clamp) == "pcs" and default_input(clamp) == CalcInput(unit="pcs", quantity=D(1))
+
+
+def test_limits_are_inclusive(rebar):
+    """Ровно 100 000 и ровно 10 000 отрезков — ещё можно; отрезок ровно в пруток — можно, без реза."""
+    assert calc(rebar, unit="m", quantity=D(100_000)).meters is not None
+    assert calc(rebar, cut=True, cut_length_m=D("0.1"), cut_count=10_000).cuts > 0
+    whole = calc(rebar, cut=True, cut_length_m=D("11.7"), cut_count=3)
+    assert (whole.pieces, whole.cuts, whole.waste_m) == (3, 0, D(0))
+
+
+@pytest.mark.parametrize("length", [D(0), D("-1")])
+def test_cut_length_must_be_positive(rebar, length):
+    with pytest.raises(CalcError, match="Укажите длину отрезка"):
+        calc(rebar, cut=True, cut_length_m=length, cut_count=2)
+
+
+def test_too_many_cuts(rebar):
+    with pytest.raises(CalcError, match="Слишком много отрезков"):
+        calc(rebar, cut=True, cut_length_m=D("0.1"), cut_count=10_001)
