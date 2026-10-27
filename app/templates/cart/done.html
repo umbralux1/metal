@@ -8,7 +8,11 @@
 </div>
 <ul class="order-items">
   {% for item in calc['items'] %}
-  <li><a href="{{ item.url }}">{{ item.name }}</a><span>{{ item.total_kop | rub }}</span></li>
+  <li><span><a href="{{ item.url }}">{{ item.name }}</a><br><span class="muted small">
+    {%- if item.pieces %}{{ item.pieces }} шт.{% endif %}
+    {%- if item.meters %}{{ ' · ' if item.pieces }}{{ item.meters | num }} м{% endif %}
+    {%- if item.cut %} · резка {{ item.cut_count }} × {{ item.cut_len }} м{% endif -%}
+  </span></span><span>{{ item.total_kop | rub }}</span></li>
   {% endfor %}
 </ul>
 <dl class="order-summary">
