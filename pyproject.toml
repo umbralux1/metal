@@ -81,6 +81,7 @@ source_modules = [
     "app.delivery.cargo",
     "app.delivery.selection",
     "app.leads.phone",
+    "app.leads.fingerprint",
 ]
 forbidden_modules = ["sqlalchemy", "httpx", "fastapi", "starlette", "app.core.db", "app.core.config"]
 

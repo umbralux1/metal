@@ -7,14 +7,11 @@ from sqladmin.authentication import AuthenticationBackend
 from starlette.requests import Request
 
 from app.core.config import settings
+from app.core.http import client_ip
 
 MAX_FAILURES = 5
 BLOCK_SECONDS = 15 * 60
 _failures: dict[str, list[float]] = {}
-
-
-def _client_ip(request: Request) -> str:
-    return request.client.host if request.client else "unknown"
 
 
 def _recent_failures(ip: str) -> list[float]:
@@ -33,7 +30,7 @@ class AdminAuth(AuthenticationBackend):
         super().__init__(secret_key=settings.secret_key)
 
     async def login(self, request: Request) -> bool:
-        ip = _client_ip(request)
+        ip = client_ip(request)
         # Перебор паролей: после 5 ошибок за 15 минут вход с этого адреса закрыт
         if len(_recent_failures(ip)) >= MAX_FAILURES:
             return False

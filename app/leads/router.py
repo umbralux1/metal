@@ -7,9 +7,10 @@ from app.catalog.read_models import product_link
 from app.catalog.repository import get_product_by_id
 from app.core.config import settings
 from app.core.db import get_session
+from app.core.http import client_ip
 from app.core.templating import templates
 from app.leads.phone import normalize_phone
-from app.leads.service import NewLead, create_lead
+from app.leads.service import NewLead, TooManyLeads, create_lead
 from app.seo.meta import PageMeta, absolute
 
 router = APIRouter()
@@ -63,8 +64,12 @@ async def submit_lead(request: Request, session: AsyncSession = Depends(get_sess
         phone=phone,
         comment=values["comment"][:2000],
         calc=calc,
+        client_ip=client_ip(request),
     )
-    lead = await create_lead(session, new)
+    try:
+        lead = await create_lead(session, new)
+    except TooManyLeads as exc:
+        return form_error(str(exc), status=429)
 
     if _is_fetch(request):
         return templates.TemplateResponse(request, "leads/_done.html", {"lead": lead})

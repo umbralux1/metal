@@ -22,9 +22,11 @@ from app.cart.store import CartItem
 from app.catalog.calculator import CalcError, CalcResult
 from app.core.config import settings
 from app.core.db import get_session
+from app.core.http import client_ip
 from app.core.maps import yandex_map
 from app.core.numbers import format_decimal
 from app.core.templating import format_rub, templates
+from app.leads.service import TooManyLeads
 from app.seo.meta import PageMeta, absolute
 
 router = APIRouter()
@@ -149,9 +151,9 @@ async def cart_checkout(request: Request, session: AsyncSession = Depends(get_se
     lines = await list_cart_lines(session, store.load(request))
     options = await quote_cart_delivery(session, lines, form.distance_km)
 
-    def page(error: str) -> Response:
+    def page(error: str, status: int = 422) -> Response:
         context = {**_cart_context(lines, options, values), "error": error}
-        return templates.TemplateResponse(request, "cart/page.html", context, status_code=422, headers=NOINDEX)
+        return templates.TemplateResponse(request, "cart/page.html", context, status_code=status, headers=NOINDEX)
 
     if raw.get("website"):  # ловушка для ботов
         return RedirectResponse("/cart/", status_code=303)
@@ -165,7 +167,10 @@ async def cart_checkout(request: Request, session: AsyncSession = Depends(get_se
     except CheckoutError as exc:
         return page(str(exc))
 
-    lead = await create_order(session, form, lines, quote)
+    try:
+        lead = await create_order(session, form, lines, quote, client_ip(request))
+    except TooManyLeads as exc:
+        return page(str(exc), status=429)
     request.state.cart_count = 0  # в шапке страницы «Заказ принят» корзина уже пустая
     context = {"meta": _meta("Заказ принят"), "lead": lead, "payments": PAYMENTS}
     response = templates.TemplateResponse(request, "cart/done.html", context, headers=NOINDEX)

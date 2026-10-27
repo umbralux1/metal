@@ -111,9 +111,12 @@ async def quote_cart_delivery(session: AsyncSession, lines: list[Line], distance
 
 
 async def create_order(
-    session: AsyncSession, form: CheckoutForm, lines: list[Line], quote: VehicleQuote | None
+    session: AsyncSession, form: CheckoutForm, lines: list[Line], quote: VehicleQuote | None, client_ip: str
 ) -> LeadReceipt:
-    """Сохраняет заказ заявкой и уведомляет менеджера. Форма и машина уже проверены."""
+    """Сохраняет заказ заявкой и уведомляет менеджера. Форма и машина уже проверены.
+
+    Порог заявок с адреса достигнут — TooManyLeads (app.leads.service).
+    """
     items = [
         {
             "product_id": line.product.id,
@@ -133,5 +136,6 @@ async def create_order(
         phone=form.phone,
         comment=order_comment(form),
         calc=order_snapshot(form, items, goods_kop, quote),
+        client_ip=client_ip,
     )
     return await create_lead(session, new)

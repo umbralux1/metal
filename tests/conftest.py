@@ -47,6 +47,14 @@ async def database():
     await engine.dispose()
 
 
+@pytest.fixture(autouse=True)
+def lead_limit_off(request, monkeypatch):
+    """Тесты шлют десятки заявок с одного адреса — порог им не мешает. Настоящий порог — в test_lead_limit.py."""
+    if request.module.__name__.endswith("test_lead_limit"):
+        return
+    monkeypatch.setattr(settings, "lead_limit", 1_000_000)
+
+
 @pytest_asyncio.fixture
 async def admin():
     """Клиент, вошедший в админку."""

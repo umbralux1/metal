@@ -82,6 +82,10 @@ class Settings(BaseSettings):
     # Ключ для подписи сессии админки. Если не задан, генерируется при запуске (сессии сбросятся после рестарта).
     secret_key: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
 
+    # Заявки и заказы: не больше lead_limit с одного адреса за lead_limit_minutes (specs/001-lead-rate-limit)
+    lead_limit: int = 5
+    lead_limit_minutes: int = 10
+
     # Калькулятор: цена одного реза и с какого веса действует цена за тонну
     cut_price_kop: int = 5000
     ton_price_from_kg: int = 1000
