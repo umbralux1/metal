@@ -93,7 +93,7 @@ def test_every_field_rejects_garbage(field, raw):
 
 
 def test_same_item_with_spaced_quantity_merges_in_cart():
-    """BUG-008: «1 000» дважды — одна строка на 2000, а не две одинаковые строки."""
+    """002:FR-003. BUG-008: «1 000» дважды — одна строка на 2000, а не две одинаковые строки."""
     item = lambda: CartItem(product_id=1, unit="m", qty="1 000")  # noqa: E731
     items = add(add([], item()), item())
     assert [(i.product_id, i.qty) for i in items] == [(1, "2000")]

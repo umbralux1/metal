@@ -29,12 +29,14 @@ async def _pid(path: str) -> int:
 
 
 async def test_empty_cart_is_noindex(shop):
+    """002:FR-010: страница корзины не индексируется."""
     r = await shop.get("/cart/")
     assert r.status_code == 200 and "В корзине пока ничего нет" in r.text
     assert r.headers["x-robots-tag"].startswith("noindex")
 
 
 async def test_add_without_js_redirects_to_cart_and_counts(shop):
+    """002:FR-001, 002:FR-002, 002:FR-005: без JavaScript — в корзину, цена по текущей, счётчик в шапке."""
     pid = await _pid(REBAR)
     r = await shop.post("/cart/add/", data={"product_id": pid, "unit": "m", "qty": "11,7"})
     assert r.status_code == 303 and r.headers["location"] == "/cart/"
@@ -45,6 +47,7 @@ async def test_add_without_js_redirects_to_cart_and_counts(shop):
 
 
 async def test_add_with_fetch_returns_count_and_merges_same_item(shop):
+    """002:FR-002, 002:FR-003: что добавлено и сколько; та же позиция складывается."""
     pid = await _pid(REBAR)
     headers = {"X-Requested-With": "fetch"}
     r1 = await shop.post("/cart/add/", data={"product_id": pid, "unit": "m", "qty": "11,7"}, headers=headers)
@@ -58,6 +61,7 @@ async def test_add_with_fetch_returns_count_and_merges_same_item(shop):
 
 
 async def test_cart_line_with_cutting_and_bad_quantity(shop):
+    """002:FR-004: позиция, которая не считается, в корзину не кладётся; резка — своя строка."""
     pid = await _pid(REBAR)
     headers = {"X-Requested-With": "fetch"}
     bad = await shop.post("/cart/add/", data={"product_id": pid, "unit": "m", "qty": "0"}, headers=headers)
@@ -69,6 +73,7 @@ async def test_cart_line_with_cutting_and_bad_quantity(shop):
 
 
 async def test_update_and_remove(shop):
+    """002:FR-007: изменить количество и удалить позицию."""
     pid = await _pid(REBAR)
     await shop.post("/cart/add/", data={"product_id": pid, "unit": "m", "qty": "11,7"})
     await shop.post("/cart/update/", data={"index": 0, "qty": "23,4"})
@@ -78,11 +83,13 @@ async def test_update_and_remove(shop):
 
 
 async def test_tampered_cookie_gives_empty_cart(shop):
+    """002:FR-009: подделанная корзина — пустая."""
     shop.cookies.set(COOKIE, "forged.value")
     assert "В корзине пока ничего нет" in (await shop.get("/cart/")).text
 
 
 async def test_checkout_creates_order_with_items_and_clears_cart(shop):
+    """002:FR-011, 002:FR-012, 002:FR-015, 002:FR-016: телефон, адрес, снимок заказа, корзина очищена."""
     rebar, tube = await _pid(REBAR), await _pid("/catalog/truba-profilnaya/kvadratnaya/40x40/40x40x2/")
     await shop.post("/cart/add/", data={"product_id": rebar, "unit": "m", "qty": "11,7"})
     await shop.post("/cart/add/", data={"product_id": tube, "unit": "m", "qty": "6"})
@@ -119,11 +126,13 @@ async def test_checkout_creates_order_with_items_and_clears_cart(shop):
 
 
 async def test_product_page_has_add_to_cart_button(client):
+    """002:FR-001: на карточке есть «В корзину»."""
     html = (await client.get(REBAR)).text
     assert 'formaction="/cart/add/"' in html and 'name="product_id"' in html
 
 
 async def test_admin_shows_cart_order_items():
+    """002:FR-018: позиции заказа в админке, данные покупателя — текстом."""
     from app.admin.leads import _lead_calc_html
 
     html = str(

@@ -115,6 +115,7 @@ async def test_tariffs_link_on_cart_page(shop):
 
 
 async def test_checkout_requires_distance_and_vehicle(shop):
+    """002:FR-012: для доставки нужны расстояние и машина."""
     await add_whole_bar(shop)
     long_id = await vehicle_id(LONG)
 
@@ -135,6 +136,7 @@ async def test_checkout_requires_distance_and_vehicle(shop):
 
 
 async def test_checkout_with_delivery_adds_delivery_to_total(shop):
+    """002:FR-015, 002:FR-016: доставка в итоге заказа."""
     await add_whole_bar(shop)
     r = await shop.post("/cart/checkout/", data=order(distance_km="18", vehicle_id=await vehicle_id(LONG)))
     assert r.status_code == 200 and "Заказ №" in r.text
@@ -144,6 +146,7 @@ async def test_checkout_with_delivery_adds_delivery_to_total(shop):
 
 
 async def test_pickup_needs_no_distance_or_vehicle(shop):
+    """002:FR-012: самовывозу адрес и машина не нужны."""
     await add_whole_bar(shop)
     r = await shop.post("/cart/checkout/", data={"phone": PHONE, "delivery": "pickup"})
     assert r.status_code == 200
@@ -152,6 +155,7 @@ async def test_pickup_needs_no_distance_or_vehicle(shop):
 
 
 async def test_too_heavy_for_any_vehicle_is_accepted_for_manager(shop):
+    """002:FR-012: ни одна машина не подходит — заказ без машины."""
     # 40 000 м арматуры ≈ 35,5 т — больше любой машины: заказ принимаем, рейсы посчитает менеджер
     await shop.post("/cart/add/", data={"product_id": await rebar_id(), "unit": "m", "qty": "40000"})
     html = (await shop.get("/cart/", params={"distance_km": "18"})).text
@@ -200,6 +204,7 @@ async def test_cart_has_buyer_and_payment_fields(shop):
 
 
 async def test_company_requires_name_and_valid_inn(shop):
+    """002:FR-013: организации — название и ИНН."""
     await add_short_pieces(shop)
     base = order(distance_km="18", vehicle_id=await vehicle_id(TRUCK), buyer_type="company", payment="invoice")
 
@@ -211,6 +216,7 @@ async def test_company_requires_name_and_valid_inn(shop):
 
 
 async def test_invoice_is_only_for_companies(shop):
+    """002:FR-013: оплата по счёту — только организациям."""
     await add_short_pieces(shop)
     data = order(distance_km="18", vehicle_id=await vehicle_id(TRUCK), buyer_type="person", payment="invoice")
     r = await shop.post("/cart/checkout/", data=data)
@@ -218,6 +224,7 @@ async def test_invoice_is_only_for_companies(shop):
 
 
 async def test_form_keeps_entered_values_after_error(shop):
+    """002:FR-014: после ошибки введённое остаётся в полях."""
     await add_short_pieces(shop)
     data = order(distance_km="18", buyer_type="company", company_name="ООО «Ромашка»", inn="7707083893")
     r = await shop.post("/cart/checkout/", data=data)  # машина не выбрана
@@ -229,6 +236,7 @@ async def test_form_keeps_entered_values_after_error(shop):
 
 
 async def test_lead_keeps_delivery_buyer_and_payment_snapshot(shop):
+    """002:FR-015: доставка, покупатель и оплата в снимке заказа."""
     await add_short_pieces(shop)
     truck = await vehicle_id(TRUCK)
     data = order(
@@ -250,6 +258,7 @@ async def test_lead_keeps_delivery_buyer_and_payment_snapshot(shop):
 
 
 async def test_person_paying_cash_is_default(shop):
+    """002:FR-013: по умолчанию частное лицо и оплата при получении."""
     await add_short_pieces(shop)
     r = await shop.post("/cart/checkout/", data=order(distance_km="18", vehicle_id=await vehicle_id(TRUCK)))
     assert r.status_code == 200
@@ -268,6 +277,7 @@ async def test_lead_price_unknown_beyond_max_distance(shop):
 
 
 async def test_lead_snapshot_does_not_change_with_tariff(shop):
+    """002:FR-015: смена тарифа снимок не меняет."""
     await add_short_pieces(shop)
     truck = await vehicle_id(TRUCK)
     await shop.post("/cart/checkout/", data=order(distance_km="18", vehicle_id=truck))
@@ -285,6 +295,7 @@ async def test_lead_snapshot_does_not_change_with_tariff(shop):
 
 
 def test_admin_shows_delivery_buyer_and_payment():
+    """002:FR-018: доставка, покупатель и оплата в админке."""
     from app.admin.leads import _lead_calc_html
 
     html = str(
@@ -312,6 +323,7 @@ def test_admin_shows_delivery_buyer_and_payment():
 
 
 def test_admin_shows_delivery_price_unknown():
+    """002:FR-018: цена доставки неизвестна — в админке «уточнить»."""
     from app.admin.leads import _lead_calc_html
 
     html = str(
