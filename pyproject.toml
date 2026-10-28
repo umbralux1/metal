@@ -105,13 +105,3 @@ strict_equality = true
 [[tool.mypy.overrides]]
 module = ["wtforms", "wtforms.*"]
 ignore_missing_imports = true
-
-# Мутационное тестирование (make mutants): mutmut портит код корзины и заявок и смотрит, замечают ли тесты.
-# Браузерные тесты при этом пропускаются (tests/conftest.py). Запускать командой mutmut, не python -m mutmut.
-[tool.mutmut]
-paths_to_mutate = ["app/cart/", "app/leads/"]
-also_copy = [
-    "app/__init__.py", "app/admin", "app/bootstrap.py", "app/catalog", "app/core", "app/delivery", "app/main.py",
-    "app/models.py", "app/pages", "app/seo", "app/static", "app/templates",
-    "migrations/", "alembic.ini", "main.py", "scripts/", "deploy/", "specs/",
-]

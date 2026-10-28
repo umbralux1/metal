@@ -7,4 +7,4 @@ mypy>=1.11  # проверка типов: make types
 import-linter>=2.1  # контракты зависимостей модулей: make imports
 pip-audit>=2.7  # уязвимости в зависимостях: make audit
 playwright>=1.56  # браузерные тесты в WebKit (Safari), BUG-004: браузер ставит make browsers
-mutmut>=3.3  # мутационное тестирование: make mutants (запускать командой mutmut, не python -m)
+mutmut>=3.3  # мутационное тестирование: make mutants M=… (scripts/mutants.py)

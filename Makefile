@@ -100,11 +100,9 @@ dups: ## Похожий код (semdup, нужен Rust): отчёт в semdup-0
 	semdup scan -t 0.85 --show-bodies > semdup-085.txt
 	@echo "Отчёт: semdup-085.txt ($$(grep -c '^## cluster' semdup-085.txt) кластеров)"
 
-mutants: db ## Мутационное тестирование корзины и заявок (mutmut, ~40 мин): какую порчу кода тесты не замечают
-	@test -x $(VENV)/bin/mutmut || (echo "Нужен mutmut: make install"; exit 1)
-	rm -rf mutants
-	$(VENV)/bin/mutmut run --max-children 1
-	$(VENV)/bin/mutmut results
+mutants: ## Мутационное тестирование части сайта: make mutants M=cart, M="cart leads", M=catalog/calculator, M=all
+	@if [ -n "$(M)" ]; then $(MAKE) --no-print-directory db; fi
+	$(PY) -m scripts.mutants $(M)
 
 # ---------- Выкладка ----------
 
