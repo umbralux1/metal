@@ -5,6 +5,7 @@
     make mutants M="catalog/calculator"  — один файл каталога: калькулятор
     make mutants M="cart leads delivery" — несколько частей сразу
     make mutants M=all                   — весь сайт (несколько часов)
+    make mutants M=cart GC=true          — после отчёта удалить папку mutants/ (тогда --show уже не посмотреть)
     python -m scripts.mutants cart --show app.cart.store.x_add__mutmut_7   — что именно испортили
 
 Часть сайта — папка или файл в app/: cart, leads, delivery, seo, admin, catalog, catalog/calculator…
@@ -17,7 +18,9 @@
 """
 
 import argparse
+import json
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -89,20 +92,46 @@ def configure(parts: list[str]) -> None:
     mm.config_reader = config_reader
 
 
+def ensure_mutmut() -> None:
+    """Нет mutmut — ставим (версия как в requirements-dev.txt)."""
+    try:
+        import mutmut  # noqa: F401
+    except ImportError:
+        print("Ставлю mutmut…")
+        subprocess.run([sys.executable, "-m", "pip", "install", "-q", "mutmut>=3.3"], check=True)  # noqa: S603
+
+
+def summary(folder: Path = Path("mutants")) -> str:
+    """«Поймано 623 из 752 (83%), выжило 129» — по результатам mutmut в mutants/**/*.meta."""
+    codes = [
+        code
+        for meta in folder.glob("**/*.meta")
+        for code in json.loads(meta.read_text(encoding="utf-8")).get("exit_code_by_key", {}).values()
+    ]
+    if not codes:
+        return "Результатов нет"
+    killed, survived, untested = codes.count(1), codes.count(0), codes.count(33)
+    text = f"Поймано {killed} из {len(codes)} ({killed * 100 // len(codes)}%), выжило {survived}"
+    return text + (f", без тестов {untested}" if untested else "")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Мутационное тестирование частей сайта (mutmut)")
     parser.add_argument("parts", nargs="*", help="части сайта: cart leads delivery … или all")
     parser.add_argument("--show", metavar="MUTANT", help="показать, что испорчено в выжившем (имя из списка)")
+    parser.add_argument("--gc", action="store_true", help="после отчёта удалить mutants/")
     args = parser.parse_args(argv)
     if not args.parts:  # долгий прогон только по явной просьбе
         print('Укажите часть сайта: make mutants M=cart (несколько — M="cart leads", весь сайт — M=all).')
         print(known_parts())
         return 0
     try:
-        configure(args.parts)
+        part_paths(args.parts)
     except ValueError as exc:
         print(exc, file=sys.stderr)
         return 2
+    ensure_mutmut()
+    configure(args.parts)
 
     import mutmut.__main__ as mm
 
@@ -112,12 +141,18 @@ def main(argv: list[str] | None = None) -> int:
     shutil.rmtree("mutants", ignore_errors=True)  # старые результаты другой части сайта только путают
     print(f"Портим: {', '.join(str(p) for p in part_paths(args.parts))}")
     try:
-        mm.cli(["run", "--max-children", "1"], standalone_mode=False)  # база одна — тесты по одному
-    except SystemExit as exc:
-        if exc.code:
-            return int(exc.code)
-    mm.cli(["results"], standalone_mode=False)
-    return 0
+        try:
+            mm.cli(["run", "--max-children", "1"], standalone_mode=False)  # база одна — тесты по одному
+        except SystemExit as exc:
+            if exc.code:
+                return int(exc.code)
+        mm.cli(["results"], standalone_mode=False)
+        print(summary())
+        return 0
+    finally:
+        if args.gc:  # и после ошибки или Ctrl+C
+            shutil.rmtree("mutants", ignore_errors=True)
+            print("Папка mutants/ удалена")
 
 
 if __name__ == "__main__":

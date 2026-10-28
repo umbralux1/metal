@@ -34,6 +34,15 @@ def test_without_parts_only_hints_and_runs_nothing(capsys):
     assert "make mutants M=cart" in out and "all" in out
 
 
+def test_summary_counts_caught_and_survived(tmp_path):
+    from scripts.mutants import summary
+
+    (tmp_path / "app").mkdir()
+    (tmp_path / "app" / "a.py.meta").write_text('{"exit_code_by_key": {"m1": 1, "m2": 1, "m3": 0, "m4": 33}}')
+    assert summary(tmp_path) == "Поймано 2 из 4 (50%), выжило 1, без тестов 1"
+    assert summary(tmp_path / "нет") == "Результатов нет"
+
+
 def test_unknown_part_names_the_known_ones(app):
     with pytest.raises(ValueError, match="Нет части сайта «склад».*cart.*catalog"):
         part_paths(["склад"], app)

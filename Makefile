@@ -100,9 +100,9 @@ dups: ## Похожий код (semdup, нужен Rust): отчёт в semdup-0
 	semdup scan -t 0.85 --show-bodies > semdup-085.txt
 	@echo "Отчёт: semdup-085.txt ($$(grep -c '^## cluster' semdup-085.txt) кластеров)"
 
-mutants: ## Мутационное тестирование части сайта: make mutants M=cart, M="cart leads", M=catalog/calculator, M=all
+mutants: ## Мутационное тестирование: make mutants M=cart (M="cart leads", M=catalog/calculator, M=all); GC=true — убрать за собой
 	@if [ -n "$(M)" ]; then $(MAKE) --no-print-directory db; fi
-	$(PY) -m scripts.mutants $(M)
+	$(PY) -m scripts.mutants $(M) $(if $(filter true,$(GC)),--gc)
 
 # ---------- Выкладка ----------
 
