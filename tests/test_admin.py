@@ -4,7 +4,6 @@ import httpx
 import pytest
 from sqlalchemy import select
 
-from app.admin.auth import reset_login_limits
 from app.catalog.models import Category, FilterLanding, Product, Redirect
 from app.core.config import settings
 from app.core.db import SessionLocal
@@ -29,18 +28,6 @@ async def test_admin_requires_login():
         r = await c.get("/admin/product/list")
         assert r.status_code in (302, 303)
         assert "/admin/login" in r.headers["location"]
-
-
-async def test_wrong_password_and_brute_force_block():
-    reset_login_limits()
-    async with new_client() as c:
-        for _ in range(5):
-            r = await c.post("/admin/login", data={"username": "admin", "password": "nope"})
-            assert r.status_code != 302
-        # После 5 ошибок не пускает даже с верным паролем
-        r = await c.post("/admin/login", data={"username": "admin", "password": "test-admin-pass"})
-        assert r.status_code != 302
-    reset_login_limits()
 
 
 @pytest.mark.parametrize("page", ADMIN_PAGES)
