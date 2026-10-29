@@ -19,7 +19,6 @@ from sqlalchemy import create_engine, text  # noqa: E402
 from sqlalchemy.engine import make_url  # noqa: E402
 
 import app.models  # noqa: E402, F401  — регистрирует все таблицы, как для Alembic
-from app.admin.auth import reset_login_limits  # noqa: E402
 from app.catalog.landings import generate_landings  # noqa: E402
 from app.catalog.models import Redirect  # noqa: E402
 from app.catalog.seed import _seed_base  # noqa: E402
@@ -67,7 +66,6 @@ def lead_limit_off(request, monkeypatch):
 @pytest_asyncio.fixture
 async def admin():
     """Клиент, вошедший в админку."""
-    reset_login_limits()
     transport = httpx.ASGITransport(app=fastapi_app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as c:
         r = await c.post("/admin/login", data={"username": "admin", "password": "test-admin-pass"})

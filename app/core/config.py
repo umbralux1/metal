@@ -86,6 +86,10 @@ class Settings(BaseSettings):
     lead_limit: int = 5
     lead_limit_minutes: int = 10
 
+    # Вход в админку: после admin_login_limit ошибок за admin_login_limit_minutes адрес закрыт (specs/003-admin-login-limit)
+    admin_login_limit: int = 5
+    admin_login_limit_minutes: int = 15
+
     # Калькулятор: цена одного реза и с какого веса действует цена за тонну
     cut_price_kop: int = 5000
     ton_price_from_kg: int = 1000

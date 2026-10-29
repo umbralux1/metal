@@ -16,14 +16,16 @@ def setup_admin(app: FastAPI) -> Admin | None:
     """Подключает /admin, если задан пароль. Без пароля админки нет совсем."""
     if not settings.admin_password:
         return None
+    auth = AdminAuth()
     admin = Admin(
         app,
         engine=engine,
         session_maker=SessionLocal,
-        authentication_backend=AdminAuth(),
+        authentication_backend=auth,
         title=f"{settings.site_name} — админка",
         base_url="/admin",
     )
+    auth.templates = admin.templates  # страница входа с ошибкой 429 — шаблоном SQLAdmin
     for view in (
         CategoryAdmin,
         ProductAdmin,

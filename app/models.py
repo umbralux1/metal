@@ -1,5 +1,6 @@
 """Все модели в одном месте: импортируется Alembic'ом и тестами."""
 
+from app.admin.models import AdminLoginFailure  # noqa: F401
 from app.catalog.models import Category, FilterLanding, Price, Product, Redirect, Unit  # noqa: F401
 from app.core.db import Base  # noqa: F401
 from app.delivery.models import DeliveryVehicle  # noqa: F401
